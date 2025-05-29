@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 // Register Screen - Where new users create accounts
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }

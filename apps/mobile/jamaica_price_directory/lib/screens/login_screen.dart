@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 // Login Screen - Where users sign in to the app
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }

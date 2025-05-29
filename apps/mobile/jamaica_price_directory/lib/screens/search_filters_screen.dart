@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class SearchFiltersScreen extends StatefulWidget {
   final SearchFilters currentFilters; // Current filter settings
   
-  SearchFiltersScreen({required this.currentFilters});
+  const SearchFiltersScreen({super.key, required this.currentFilters});
   
   @override
   _SearchFiltersScreenState createState() => _SearchFiltersScreenState();

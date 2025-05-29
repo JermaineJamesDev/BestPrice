@@ -4,6 +4,8 @@ import 'dart:async'; // For Timer functionality
 // Splash Screen - First screen users see when app opens
 // Shows logo and app name, then navigates to login
 class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
   @override
   _SplashScreenState createState() => _SplashScreenState();
 }

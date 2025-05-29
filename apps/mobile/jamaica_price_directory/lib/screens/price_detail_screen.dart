@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 class PriceDetailScreen extends StatefulWidget {
   final Map<String, dynamic> priceData;
   
-  PriceDetailScreen({required this.priceData});
+  const PriceDetailScreen({super.key, required this.priceData});
   
   @override
   _PriceDetailScreenState createState() => _PriceDetailScreenState();

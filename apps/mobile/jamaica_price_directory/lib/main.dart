@@ -14,6 +14,8 @@ void main() {
 
 // This is our main app widget - it wraps everything
 class JamaicaPriceDirectoryApp extends StatelessWidget {
+  const JamaicaPriceDirectoryApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

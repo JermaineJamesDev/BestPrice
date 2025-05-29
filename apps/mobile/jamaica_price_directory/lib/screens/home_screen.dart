@@ -4,6 +4,8 @@ import 'search_results_screen.dart'; // Import our new search results screen
 // Home Screen - Main app screen after successful login
 // This is where users will search for prices and see main features
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -240,8 +242,8 @@ class _HomeScreenState extends State<HomeScreen> {
             SnackBar(content: Text('Camera feature coming soon!')),
           );
         },
-        child: Icon(Icons.add),
         tooltip: 'Submit Price',
+        child: Icon(Icons.add),
       ),
     );
   }
@@ -361,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         SizedBox(height: 12),
-        ...recentPrices.map((price) => _buildPriceCard(price)).toList(),
+        ...recentPrices.map((price) => _buildPriceCard(price)),
       ],
     );
   }

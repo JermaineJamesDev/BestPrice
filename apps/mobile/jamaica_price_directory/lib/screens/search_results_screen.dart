@@ -7,7 +7,7 @@ class SearchResultsScreen extends StatefulWidget {
   final String searchQuery; // What the user searched for
   
   // Constructor - receives search query from previous screen
-  SearchResultsScreen({required this.searchQuery});
+  const SearchResultsScreen({super.key, required this.searchQuery});
   
   @override
   _SearchResultsScreenState createState() => _SearchResultsScreenState();
