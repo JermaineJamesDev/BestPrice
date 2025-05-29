@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'camera_capture_screen.dart';
 
 // Camera Screen - For submitting prices via photos and manual entry
 class CameraScreen extends StatefulWidget {
@@ -12,11 +13,10 @@ class _CameraScreenState extends State<CameraScreen> {
   
   // Handle taking a photo
   void _takePhoto() {
-    // TODO: Implement camera functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Camera feature coming soon! Will allow receipt scanning.'),
-        duration: Duration(seconds: 3),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CameraCaptureScreen(),
       ),
     );
   }
