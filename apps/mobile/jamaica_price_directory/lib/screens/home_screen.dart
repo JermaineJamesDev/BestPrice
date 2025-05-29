@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'search_results_screen.dart'; // Import our new search results screen
 
 // Home Screen - Main app screen after successful login
 // This is where users will search for prices and see main features
@@ -54,11 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void _handleSearch() {
     String searchTerm = _searchController.text.trim();
     if (searchTerm.isNotEmpty) {
-      // TODO: Navigate to search results screen
-      // For now, just show a message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Searching for "$searchTerm"... (Search feature coming next!)'),
+      // Navigate to search results screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SearchResultsScreen(searchQuery: searchTerm),
         ),
       );
       _searchController.clear();
@@ -67,9 +68,11 @@ class _HomeScreenState extends State<HomeScreen> {
   
   // Handle popular search tap
   void _handlePopularSearchTap(String searchTerm) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Searching for "$searchTerm"... (Search feature coming next!)'),
+    // Navigate to search results screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SearchResultsScreen(searchQuery: searchTerm),
       ),
     );
   }
