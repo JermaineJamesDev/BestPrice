@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'search_results_screen.dart'; // Import our new search results screen
+import 'search_results_screen.dart'; // Keep for quick search from home
 
-// Home Screen - Main app screen after successful login
-// This is where users will search for prices and see main features
+// Home Screen - Main dashboard after successful login
+// Shows overview, quick actions, and recent updates
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -11,101 +11,115 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Controller for search input
-  final _searchController = TextEditingController();
+  // Controller for quick search
+  final _quickSearchController = TextEditingController();
   
   // Mock user data (in real app, this comes from login/user profile)
   final String userName = 'John Doe';
   final String userParish = 'Kingston';
   
-  // Mock popular searches (we'll make this dynamic later)
-  final List<String> popularSearches = [
-    'Rice',
-    'Chicken',
-    'Gas',
-    'Bread',
-    'Milk',
-    'Phone credit',
-  ];
+  // Mock dashboard stats
+  final Map<String, dynamic> dashboardStats = {
+    'moneySaved': 1250.0,
+    'pricesChecked': 47,
+    'submissions': 12,
+    'rank': 'Gold',
+  };
   
-  // Mock recent price updates (placeholder data)
-  final List<Map<String, dynamic>> recentPrices = [
+  // Mock trending prices (what's popular right now)
+  final List<Map<String, dynamic>> trendingPrices = [
+    {
+      'item': 'Gas (Regular)',
+      'trend': 'up',
+      'change': '+3.2%',
+      'currentPrice': 195.50,
+      'category': 'fuel',
+    },
     {
       'item': 'Rice (1 lb)',
-      'price': 'J\$120',
-      'store': 'Hi-Lo',
-      'location': 'Kingston',
-      'change': -5.2, // Negative means price dropped
+      'trend': 'down',
+      'change': '-5.1%',
+      'currentPrice': 120.00,
+      'category': 'groceries',
     },
     {
-      'item': 'Gas (1 gallon)',
-      'price': 'J\$195',
-      'store': 'Petcom',
-      'location': 'Spanish Town',
-      'change': 2.1, // Positive means price increased
-    },
-    {
-      'item': 'Chicken (1 lb)',
-      'price': 'J\$280',
-      'store': 'MegaMart',
-      'location': 'Montego Bay',
-      'change': 0.0, // No change
+      'item': 'Chicken Breast',
+      'trend': 'stable',
+      'change': '0.0%',
+      'currentPrice': 320.00,
+      'category': 'groceries',
     },
   ];
   
-  // Handle search action
-  void _handleSearch() {
-    String searchTerm = _searchController.text.trim();
+  // Mock price alerts
+  final List<Map<String, dynamic>> priceAlerts = [
+    {
+      'item': 'Rice (1 lb)',
+      'store': 'Hi-Lo Kingston',
+      'newPrice': 115.00,
+      'oldPrice': 125.00,
+      'savings': 10.00,
+      'time': '2 hours ago',
+    },
+    {
+      'item': 'Cooking Oil',
+      'store': 'MegaMart Spanish Town',
+      'newPrice': 680.00,
+      'oldPrice': 720.00,
+      'savings': 40.00,
+      'time': '5 hours ago',
+    },
+  ];
+  
+  // Quick actions data
+  final List<Map<String, dynamic>> quickActions = [
+    {
+      'title': 'Search Prices',
+      'subtitle': 'Find best deals',
+      'icon': Icons.search,
+      'color': Colors.blue,
+      'route': '/search',
+    },
+    {
+      'title': 'Submit Price',
+      'subtitle': 'Help others save',
+      'icon': Icons.camera_alt,
+      'color': Colors.green,
+      'route': '/camera',
+    },
+    {
+      'title': 'My Budget',
+      'subtitle': 'Track spending',
+      'icon': Icons.account_balance_wallet,
+      'color': Colors.purple,
+      'route': '/budget',
+    },
+    {
+      'title': 'My Profile',
+      'subtitle': 'Settings & stats',
+      'icon': Icons.person,
+      'color': Colors.orange,
+      'route': '/profile',
+    },
+  ];
+  
+  // Handle quick search from home
+  void _handleQuickSearch() {
+    String searchTerm = _quickSearchController.text.trim();
     if (searchTerm.isNotEmpty) {
-      // Navigate to search results screen
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => SearchResultsScreen(searchQuery: searchTerm),
         ),
       );
-      _searchController.clear();
+      _quickSearchController.clear();
     }
   }
   
-  // Handle popular search tap
-  void _handlePopularSearchTap(String searchTerm) {
-    // Navigate to search results screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SearchResultsScreen(searchQuery: searchTerm),
-      ),
-    );
-  }
-  
-  // Handle logout
-  void _handleLogout() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Sign Out'),
-        content: Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              // Go back to login screen and remove all previous screens
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (route) => false,
-              );
-            },
-            child: Text('Sign Out'),
-          ),
-        ],
-      ),
-    );
+  // Handle quick action tap
+  void _handleQuickAction(String route) {
+    Navigator.pushNamed(context, route);
   }
   
   @override
@@ -113,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       
-      // App bar with user greeting and menu
+      // App bar with user greeting
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,49 +142,32 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+        automaticallyImplyLeading: false, // Remove back button since this is main tab
         actions: [
-          // Notification icon (placeholder)
+          // Notification icon
           IconButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Notifications coming soon!')),
               );
             },
-            icon: Icon(Icons.notifications_outlined),
-          ),
-          // Menu
-          PopupMenuButton(
-            onSelected: (value) {
-              if (value == 'logout') {
-                _handleLogout();
-              } else if (value == 'profile') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Profile page coming soon!')),
-                );
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person, size: 20),
-                    SizedBox(width: 8),
-                    Text('Profile'),
-                  ],
+            icon: Stack(
+              children: [
+                Icon(Icons.notifications_outlined),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 20),
-                    SizedBox(width: 8),
-                    Text('Sign Out'),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -181,77 +178,40 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Search section
-            _buildSearchSection(),
+            // Quick search section
+            _buildQuickSearchSection(),
             
             SizedBox(height: 24),
             
-            // Popular searches
-            _buildPopularSearchesSection(),
-            
-            SizedBox(height: 24),
-            
-            // Recent price updates
-            _buildRecentPricesSection(),
+            // Dashboard stats
+            _buildDashboardStats(),
             
             SizedBox(height: 24),
             
             // Quick actions
-            _buildQuickActionsSection(),
+            _buildQuickActions(),
+            
+            SizedBox(height: 24),
+            
+            // Price alerts
+            _buildPriceAlerts(),
+            
+            SizedBox(height: 24),
+            
+            // Trending prices
+            _buildTrendingPrices(),
+            
+            SizedBox(height: 32),
           ],
         ),
-      ),
-      
-      // Bottom navigation (placeholder for now)
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 0,
-        onTap: (index) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Navigation feature coming soon!')),
-          );
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.camera_alt),
-            label: 'Submit',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet),
-            label: 'Budget',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
-      
-      // Floating action button for quick price submission
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Camera feature coming soon!')),
-          );
-        },
-        tooltip: 'Submit Price',
-        child: Icon(Icons.add),
       ),
     );
   }
   
-  // Search section widget
-  Widget _buildSearchSection() {
+  // Quick search section widget
+  Widget _buildQuickSearchSection() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -268,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'What are you looking for?',
+            'Quick Search',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -277,184 +237,103 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SizedBox(height: 12),
           TextField(
-            controller: _searchController,
+            controller: _quickSearchController,
             decoration: InputDecoration(
-              hintText: 'Search for prices...',
+              hintText: 'What are you looking for?',
               prefixIcon: Icon(Icons.search),
               suffixIcon: IconButton(
-                onPressed: _handleSearch,
+                onPressed: _handleQuickSearch,
                 icon: Icon(Icons.arrow_forward),
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            onSubmitted: (_) => _handleSearch(),
+            onSubmitted: (_) => _handleQuickSearch(),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Or use the Search tab for advanced options',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
           ),
         ],
       ),
     );
   }
   
-  // Popular searches section
-  Widget _buildPopularSearchesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Popular Searches',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: popularSearches.map((search) {
-            return InkWell(
-              onTap: () => _handlePopularSearchTap(search),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Color(0xFF1E3A8A).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Color(0xFF1E3A8A).withOpacity(0.3)),
-                ),
-                child: Text(
-                  search,
-                  style: TextStyle(
-                    color: Color(0xFF1E3A8A),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-  
-  // Recent prices section
-  Widget _buildRecentPricesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Recent Price Updates',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('View all prices feature coming soon!')),
-                );
-              },
-              child: Text('View All'),
-            ),
-          ],
-        ),
-        SizedBox(height: 12),
-        ...recentPrices.map((price) => _buildPriceCard(price)),
-      ],
-    );
-  }
-  
-  // Individual price card
-  Widget _buildPriceCard(Map<String, dynamic> price) {
-    Color changeColor = price['change'] > 0 
-        ? Colors.red 
-        : price['change'] < 0 
-            ? Colors.green 
-            : Colors.grey;
-    
-    String changeText = price['change'] > 0 
-        ? '+${price['change']}%' 
-        : price['change'] < 0 
-            ? '${price['change']}%'
-            : 'No change';
-    
+  // Dashboard stats section
+  Widget _buildDashboardStats() {
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Color(0xFF1E3A8A).withOpacity(0.3),
             spreadRadius: 1,
-            blurRadius: 4,
-            offset: Offset(0, 1),
+            blurRadius: 8,
+            offset: Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Item icon (placeholder)
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Color(0xFF1E3A8A).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.shopping_basket,
-              color: Color(0xFF1E3A8A),
+          Text(
+            'Your Impact This Month',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
+          SizedBox(height: 16),
           
-          SizedBox(width: 12),
-          
-          // Item details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  price['item'],
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  '${price['store']} • ${price['location']}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Price and change
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text(
-                price['price'],
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Color(0xFF1E3A8A),
+              Expanded(
+                child: _buildStatCard(
+                  '${dashboardStats['moneySaved'].toStringAsFixed(0)}',
+                  'Money Saved',
+                  Icons.savings,
                 ),
               ),
-              Text(
-                changeText,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: changeColor,
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  '${dashboardStats['pricesChecked']}',
+                  'Prices Checked',
+                  Icons.search,
+                ),
+              ),
+            ],
+          ),
+          
+          SizedBox(height: 12),
+          
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  '${dashboardStats['submissions']}',
+                  'Submissions',
+                  Icons.camera_alt,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  '${dashboardStats['rank']}',
+                  'Rank',
+                  Icons.star,
                 ),
               ),
             ],
@@ -464,61 +343,80 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
   
+  // Stat card widget
+  Widget _buildStatCard(String value, String label, IconData icon) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white, size: 24),
+          SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
   // Quick actions section
-  Widget _buildQuickActionsSection() {
+  Widget _buildQuickActions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Quick Actions',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
           ),
         ),
         SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildQuickActionCard(
-                'Submit Price',
-                Icons.camera_alt,
-                'Take a photo of a receipt or price tag',
-                () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Camera feature coming soon!')),
-                  );
-                },
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionCard(
-                'My Budget',
-                Icons.account_balance_wallet,
-                'Track your spending and savings',
-                () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Budget feature coming soon!')),
-                  );
-                },
-              ),
-            ),
-          ],
+        GridView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.5,
+          ),
+          itemCount: quickActions.length,
+          itemBuilder: (context, index) {
+            return _buildQuickActionCard(quickActions[index]);
+          },
         ),
       ],
     );
   }
   
   // Quick action card
-  Widget _buildQuickActionCard(String title, IconData icon, String description, VoidCallback onTap) {
+  Widget _buildQuickActionCard(Map<String, dynamic> action) {
     return InkWell(
-      onTap: onTap,
+      onTap: () => _handleQuickAction(action['route']),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.1),
@@ -529,33 +427,242 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 32,
-              color: Color(0xFF1E3A8A),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: action['color'].withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                action['icon'],
+                color: action['color'],
+                size: 20,
+              ),
             ),
             SizedBox(height: 8),
             Text(
-              title,
+              action['title'],
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
             ),
-            SizedBox(height: 4),
             Text(
-              description,
+              action['subtitle'],
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
     );
+  }
+  
+  // Price alerts section
+  Widget _buildPriceAlerts() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Recent Price Drops',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              Icon(Icons.trending_down, color: Colors.green),
+            ],
+          ),
+          SizedBox(height: 12),
+          
+          ...priceAlerts.map((alert) {
+            return Container(
+              margin: EdgeInsets.symmetric(vertical: 4),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.arrow_downward, color: Colors.green, size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          alert['item'],
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          alert['store'],
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${alert['newPrice'].toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      Text(
+                        'Save ${alert['savings'].toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+  
+  // Trending prices section
+  Widget _buildTrendingPrices() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Market Trends',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              TextButton(
+                onPressed: () => _handleQuickAction('/search'),
+                child: Text('View All'),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          
+          ...trendingPrices.map((price) {
+            Color trendColor = price['trend'] == 'up' 
+                ? Colors.red 
+                : price['trend'] == 'down' 
+                    ? Colors.green 
+                    : Colors.grey;
+            
+            IconData trendIcon = price['trend'] == 'up' 
+                ? Icons.trending_up 
+                : price['trend'] == 'down' 
+                    ? Icons.trending_down 
+                    : Icons.trending_flat;
+            
+            return Container(
+              margin: EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    _getCategoryIcon(price['category']),
+                    color: Colors.grey[600],
+                    size: 24,
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      price['item'],
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Icon(trendIcon, color: trendColor, size: 20),
+                  SizedBox(width: 4),
+                  Text(
+                    price['change'],
+                    style: TextStyle(
+                      color: trendColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    '${price['currentPrice'].toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E3A8A),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+  
+  // Get category icon
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'fuel':
+        return Icons.local_gas_station;
+      case 'groceries':
+        return Icons.shopping_basket;
+      default:
+        return Icons.store;
+    }
   }
   
   // Get greeting based on time of day
@@ -572,7 +679,7 @@ class _HomeScreenState extends State<HomeScreen> {
   
   @override
   void dispose() {
-    _searchController.dispose();
+    _quickSearchController.dispose();
     super.dispose();
   }
 }

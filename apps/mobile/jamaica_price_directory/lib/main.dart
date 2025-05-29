@@ -5,9 +5,13 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/camera_screen.dart';
+import 'screens/budget_screen.dart';
+import 'screens/profile_screen.dart';
+import 'app_navigation_shell.dart';
 
 // This is the entry point of our Flutter app
-// Think of it like the main() function in other programming languages
 void main() {
   runApp(JamaicaPriceDirectoryApp());
 }
@@ -59,10 +63,31 @@ class JamaicaPriceDirectoryApp extends StatelessWidget {
       
       // Define our app routes (navigation paths)
       routes: {
-        '/': (context) => SplashScreen(),           // Home route (first screen)
+        '/': (context) => SplashScreen(),           // Splash screen
         '/login': (context) => LoginScreen(),      // Login screen
         '/register': (context) => RegisterScreen(), // Register screen
-        '/home': (context) => HomeScreen(),        // Main app screen
+        
+        // Main app routes with navigation shell
+        '/home': (context) => AppNavigationShell(
+          currentRoute: '/home',
+          child: HomeScreen(),
+        ),
+        '/search': (context) => AppNavigationShell(
+          currentRoute: '/search',
+          child: SearchScreen(),
+        ),
+        '/camera': (context) => AppNavigationShell(
+          currentRoute: '/camera',
+          child: CameraScreen(),
+        ),
+        '/budget': (context) => AppNavigationShell(
+          currentRoute: '/budget',
+          child: BudgetScreen(),
+        ),
+        '/profile': (context) => AppNavigationShell(
+          currentRoute: '/profile',
+          child: ProfileScreen(),
+        ),
       },
       
       // Starting screen
