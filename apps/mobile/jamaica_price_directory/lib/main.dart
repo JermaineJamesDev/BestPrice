@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Import our screens
@@ -13,6 +14,9 @@ import 'app_navigation_shell.dart';
 
 // This is the entry point of our Flutter app
 void main() {
+  if (kDebugMode) {
+    debugPrint('Camera debugging enabled');
+  }
   runApp(JamaicaPriceDirectoryApp());
 }
 

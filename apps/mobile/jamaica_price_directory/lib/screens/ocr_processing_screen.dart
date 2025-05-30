@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'dart:io';
 import 'ocr_results_screen.dart';
 
 // OCR Processing Screen - Extract text and prices from captured image
