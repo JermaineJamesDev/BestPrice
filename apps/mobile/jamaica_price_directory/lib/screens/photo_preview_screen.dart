@@ -8,7 +8,7 @@ import 'ocr_processing_screen.dart';
 class PhotoPreviewScreen extends StatefulWidget {
   final String imagePath;
   
-  PhotoPreviewScreen({required this.imagePath});
+  const PhotoPreviewScreen({super.key, required this.imagePath});
   
   @override
   _PhotoPreviewScreenState createState() => _PhotoPreviewScreenState();

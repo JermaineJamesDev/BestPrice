@@ -8,7 +8,7 @@ class OCRResultsScreen extends StatefulWidget {
   final List<ExtractedPrice> extractedPrices;
   final String fullText;
   
-  OCRResultsScreen({
+  const OCRResultsScreen({super.key, 
     required this.imagePath,
     required this.extractedPrices,
     required this.fullText,
@@ -165,7 +165,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Extracted Text'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           height: 300,
           child: SingleChildScrollView(
@@ -540,10 +540,10 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
   
   // Edit price modal
   Widget _buildEditPriceModal(ExtractedPrice price, int index) {
-    final _nameController = TextEditingController(text: price.itemName);
-    final _priceController = TextEditingController(text: price.price.toString());
-    String _selectedCategory = price.suggestedCategory ?? 'Other';
-    String _selectedUnit = price.suggestedUnit ?? 'each';
+    final nameController = TextEditingController(text: price.itemName);
+    final priceController = TextEditingController(text: price.price.toString());
+    String selectedCategory = price.suggestedCategory ?? 'Other';
+    String selectedUnit = price.suggestedUnit ?? 'each';
     
     final categories = ['Groceries', 'Meat & Seafood', 'Dairy', 'Fuel', 'Other'];
     final units = ['each', 'per lb', 'per kg', 'per gallon', 'per liter'];
@@ -572,7 +572,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                 
                 // Item name
                 TextField(
-                  controller: _nameController,
+                  controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Item Name',
                     border: OutlineInputBorder(),
@@ -583,7 +583,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                 
                 // Price
                 TextField(
-                  controller: _priceController,
+                  controller: priceController,
                   decoration: InputDecoration(
                     labelText: 'Price (JMD)',
                     prefixText: 'J\$',
@@ -599,7 +599,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedCategory,
+                        value: selectedCategory,
                         decoration: InputDecoration(
                           labelText: 'Category',
                           border: OutlineInputBorder(),
@@ -609,7 +609,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                         }).toList(),
                         onChanged: (value) {
                           setModalState(() {
-                            _selectedCategory = value!;
+                            selectedCategory = value!;
                           });
                         },
                       ),
@@ -619,7 +619,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                     
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedUnit,
+                        value: selectedUnit,
                         decoration: InputDecoration(
                           labelText: 'Unit',
                           border: OutlineInputBorder(),
@@ -629,7 +629,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                         }).toList(),
                         onChanged: (value) {
                           setModalState(() {
-                            _selectedUnit = value!;
+                            selectedUnit = value!;
                           });
                         },
                       ),
@@ -655,17 +655,17 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           // Validate and save
-                          if (_nameController.text.isNotEmpty && 
-                              _priceController.text.isNotEmpty) {
+                          if (nameController.text.isNotEmpty && 
+                              priceController.text.isNotEmpty) {
                             
                             ExtractedPrice updatedPrice = ExtractedPrice(
-                              itemName: _nameController.text,
-                              price: double.tryParse(_priceController.text) ?? 0.0,
+                              itemName: nameController.text,
+                              price: double.tryParse(priceController.text) ?? 0.0,
                               originalText: price.originalText,
                               confidence: index == -1 ? 1.0 : price.confidence,
                               position: price.position,
-                              suggestedCategory: _selectedCategory,
-                              suggestedUnit: _selectedUnit,
+                              suggestedCategory: selectedCategory,
+                              suggestedUnit: selectedUnit,
                             );
                             
                             setState(() {
@@ -707,6 +707,11 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
           onPressed: _isSubmitting || _editablePrices.isEmpty || _selectedStore == null
               ? null
               : _submitPrices,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Color(0xFF1E3A8A),
+            padding: EdgeInsets.symmetric(vertical: 16),
+            minimumSize: Size(double.infinity, 50),
+          ),
           child: _isSubmitting
               ? Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -727,11 +732,6 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                   'Submit ${_editablePrices.length} Price${_editablePrices.length == 1 ? '' : 's'}',
                   style: TextStyle(fontSize: 16),
                 ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF1E3A8A),
-            padding: EdgeInsets.symmetric(vertical: 16),
-            minimumSize: Size(double.infinity, 50),
-          ),
         ),
       ),
     );

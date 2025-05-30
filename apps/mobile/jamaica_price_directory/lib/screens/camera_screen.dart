@@ -561,7 +561,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -570,6 +570,8 @@ class _CameraScreenState extends State<CameraScreen> {
 
 // Manual Price Entry Screen (placeholder)
 class ManualPriceEntryScreen extends StatefulWidget {
+  const ManualPriceEntryScreen({super.key});
+
   @override
   _ManualPriceEntryScreenState createState() => _ManualPriceEntryScreenState();
 }
@@ -710,10 +712,10 @@ class _ManualPriceEntryScreenState extends State<ManualPriceEntryScreen> {
               
               ElevatedButton(
                 onPressed: _submitPrice,
-                child: Text('Submit Price'),
                 style: ElevatedButton.styleFrom(
                   minimumSize: Size(double.infinity, 50),
                 ),
+                child: Text('Submit Price'),
               ),
             ],
           ),

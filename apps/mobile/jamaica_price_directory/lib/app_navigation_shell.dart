@@ -5,7 +5,7 @@ class AppNavigationShell extends StatefulWidget {
   final Widget child;
   final String currentRoute;
   
-  const AppNavigationShell({
+  const AppNavigationShell({super.key, 
     required this.child, 
     required this.currentRoute,
   });
@@ -135,8 +135,8 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                 Navigator.pushNamed(context, '/camera');
               },
               backgroundColor: Color(0xFF1E3A8A),
-              child: Icon(Icons.add, color: Colors.white),
               tooltip: 'Add Price',
+              child: Icon(Icons.add, color: Colors.white),
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

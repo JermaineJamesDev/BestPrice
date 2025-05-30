@@ -7,7 +7,7 @@ import 'ocr_results_screen.dart';
 class OCRProcessingScreen extends StatefulWidget {
   final String imagePath;
   
-  OCRProcessingScreen({super.key, required this.imagePath});
+  const OCRProcessingScreen({super.key, required this.imagePath});
   
   @override
   _OCRProcessingScreenState createState() => _OCRProcessingScreenState();
@@ -523,12 +523,12 @@ class _OCRProcessingScreenState extends State<OCRProcessingScreen>
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text('Go Back'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: BorderSide(color: Colors.white),
                       padding: EdgeInsets.symmetric(vertical: 16),
                     ),
+                    child: Text('Go Back'),
                   ),
                 ),
                 
@@ -544,11 +544,11 @@ class _OCRProcessingScreenState extends State<OCRProcessingScreen>
                       });
                       _processImage();
                     },
-                    child: Text('Retry'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF1E3A8A),
                       padding: EdgeInsets.symmetric(vertical: 16),
                     ),
+                    child: Text('Retry'),
                   ),
                 ),
               ],

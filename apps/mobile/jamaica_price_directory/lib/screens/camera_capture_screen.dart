@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
 import 'photo_preview_screen.dart';
 
 // Real Camera Implementation - Capture photos for price submission

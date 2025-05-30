@@ -136,8 +136,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
           _showAddExpenseDialog();
         },
         backgroundColor: Color(0xFF1E3A8A),
-        child: Icon(Icons.add, color: Colors.white),
         tooltip: 'Add Expense',
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -304,7 +304,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
         
         ...budgetCategories.map((category) {
           return _buildBudgetCategoryCard(category);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -594,7 +594,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -602,8 +602,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
   
   // Show add expense dialog
   void _showAddExpenseDialog() {
-    final _expenseController = TextEditingController();
-    final _descriptionController = TextEditingController();
+    final expenseController = TextEditingController();
+    final descriptionController = TextEditingController();
     String selectedCategory = 'Groceries';
     
     showDialog(
@@ -614,7 +614,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _descriptionController,
+              controller: descriptionController,
               decoration: InputDecoration(
                 labelText: 'Description',
                 hintText: 'e.g., Hi-Lo grocery shopping',
@@ -622,7 +622,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
             SizedBox(height: 16),
             TextField(
-              controller: _expenseController,
+              controller: expenseController,
               decoration: InputDecoration(
                 labelText: 'Amount (JMD)',
                 prefixText: 'J\$',
@@ -655,7 +655,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (_expenseController.text.isNotEmpty && _descriptionController.text.isNotEmpty) {
+              if (expenseController.text.isNotEmpty && descriptionController.text.isNotEmpty) {
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Expense added successfully!')),
