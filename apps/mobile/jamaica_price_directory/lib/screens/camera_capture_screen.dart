@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'long_receipt_capture_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import '../utils/camera_error_handler.dart';
@@ -647,6 +648,18 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 size: 32,
               ),
             ),
+            IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LongReceiptCaptureScreen(),
+                ),
+              );
+            },
+            icon: Icon(Icons.receipt_long),
+            tooltip: 'Long Receipt Mode',
+          ),
           ],
         ),
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:jamaica_price_directory/screens/enhanced_ocr_results_screen.dart';
+import 'package:jamaica_price_directory/services/advanced_ocr_processor.dart';
 import 'ocr_results_screen.dart';
 
 // OCR Processing Screen - Extract text and prices from captured image
@@ -161,7 +163,7 @@ class _OCRProcessingScreenState extends State<OCRProcessingScreen>
                   line.boundingBox.top.toDouble(),
                   line.boundingBox.right.toDouble(),
                   line.boundingBox.bottom.toDouble(),
-                ),
+                ), category: '', unit: '',
               ));
             }
           }
@@ -258,13 +260,13 @@ class _OCRProcessingScreenState extends State<OCRProcessingScreen>
   void _enhanceResults() {
     for (ExtractedPrice price in _extractedPrices) {
       // Auto-categorize items
-      price.suggestedCategory = _categorizeItem(price.itemName);
+      //price.suggestedCategory = _categorizeItem(price.itemName);
       
       // Suggest common units
-      price.suggestedUnit = _suggestUnit(price.itemName);
+      //price.suggestedUnit = _suggestUnit(price.itemName);
       
       // Format item name
-      price.itemName = _formatItemName(price.itemName);
+      //price.itemName = _formatItemName(price.itemName);
     }
   }
   
@@ -323,7 +325,7 @@ class _OCRProcessingScreenState extends State<OCRProcessingScreen>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => OCRResultsScreen(
+        builder: (context) => EnhancedOCRResultsScreen(
           imagePath: widget.imagePath,
           extractedPrices: _extractedPrices,
           fullText: _fullText,
@@ -557,25 +559,4 @@ class _OCRProcessingScreenState extends State<OCRProcessingScreen>
       ),
     );
   }
-}
-
-// Extracted Price Data Class
-class ExtractedPrice {
-  String itemName;
-  double price;
-  String originalText;
-  double confidence;
-  Rect position;
-  String? suggestedCategory;
-  String? suggestedUnit;
-  
-  ExtractedPrice({
-    required this.itemName,
-    required this.price,
-    required this.originalText,
-    required this.confidence,
-    required this.position,
-    this.suggestedCategory,
-    this.suggestedUnit,
-  });
 }

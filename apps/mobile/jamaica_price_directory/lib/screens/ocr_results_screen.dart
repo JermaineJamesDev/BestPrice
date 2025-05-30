@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ocr_processing_screen.dart'; // For ExtractedPrice class
+import 'package:jamaica_price_directory/services/advanced_ocr_processor.dart';
 
 // OCR Results Screen - Review and submit extracted prices
 class OCRResultsScreen extends StatefulWidget {
@@ -10,7 +10,7 @@ class OCRResultsScreen extends StatefulWidget {
   const OCRResultsScreen({super.key, 
     required this.imagePath,
     required this.extractedPrices,
-    required this.fullText,
+    required this.fullText, required bool isLongReceipt,
   });
   
   @override
@@ -147,8 +147,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
       originalText: 'Manual Entry',
       confidence: 1.0,
       position: Rect.zero,
-      suggestedCategory: 'Other',
-      suggestedUnit: 'each',
+      category: '', unit: '',
     );
     
     showModalBottomSheet(
@@ -429,29 +428,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                       color: Color(0xFF1E3A8A),
                     ),
                   ),
-                  if (price.suggestedUnit != null) ...[
-                    SizedBox(width: 8),
-                    Text(
-                      price.suggestedUnit!,
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
                   Spacer(),
-                  if (price.suggestedCategory != null)
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        price.suggestedCategory!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[700],
-                        ),
-                      ),
-                    ),
                 ],
               ),
               
@@ -541,9 +518,6 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
   Widget _buildEditPriceModal(ExtractedPrice price, int index) {
     final nameController = TextEditingController(text: price.itemName);
     final priceController = TextEditingController(text: price.price.toString());
-    String selectedCategory = price.suggestedCategory ?? 'Other';
-    String selectedUnit = price.suggestedUnit ?? 'each';
-    
     final categories = ['Groceries', 'Meat & Seafood', 'Dairy', 'Fuel', 'Other'];
     final units = ['each', 'per lb', 'per kg', 'per gallon', 'per liter'];
     
@@ -598,7 +572,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedCategory,
+                      
                         decoration: InputDecoration(
                           labelText: 'Category',
                           border: OutlineInputBorder(),
@@ -608,7 +582,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                         }).toList(),
                         onChanged: (value) {
                           setModalState(() {
-                            selectedCategory = value!;
+                            
                           });
                         },
                       ),
@@ -618,7 +592,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                     
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedUnit,
+                        
                         decoration: InputDecoration(
                           labelText: 'Unit',
                           border: OutlineInputBorder(),
@@ -628,7 +602,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                         }).toList(),
                         onChanged: (value) {
                           setModalState(() {
-                            selectedUnit = value!;
+                            
                           });
                         },
                       ),
@@ -662,9 +636,7 @@ class _OCRResultsScreenState extends State<OCRResultsScreen> {
                               price: double.tryParse(priceController.text) ?? 0.0,
                               originalText: price.originalText,
                               confidence: index == -1 ? 1.0 : price.confidence,
-                              position: price.position,
-                              suggestedCategory: selectedCategory,
-                              suggestedUnit: selectedUnit,
+                              position: price.position, category: price.category, unit: price.unit,
                             );
                             
                             setState(() {

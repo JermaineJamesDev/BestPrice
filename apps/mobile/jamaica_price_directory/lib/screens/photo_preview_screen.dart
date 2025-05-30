@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image/image.dart' as img;
-import 'ocr_processing_screen.dart';
+import 'enhanced_ocr_processing_screen.dart';
 
 class PhotoPreviewScreen extends StatefulWidget {
   final String imagePath;
@@ -167,7 +167,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => OCRProcessingScreen(imagePath: _imageFile!.path),
+          builder: (context) => EnhancedOCRProcessingScreen(imagePath: _imageFile!.path),
         ),
       );
     }

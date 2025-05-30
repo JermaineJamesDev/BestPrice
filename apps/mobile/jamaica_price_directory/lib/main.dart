@@ -7,9 +7,9 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/search_screen.dart';
-import 'screens/camera_screen.dart';
 import 'screens/budget_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/enhanced_camera_screen.dart';
 import 'app_navigation_shell.dart';
 
 // This is the entry point of our Flutter app
@@ -82,7 +82,7 @@ class JamaicaPriceDirectoryApp extends StatelessWidget {
         ),
         '/camera': (context) => AppNavigationShell(
           currentRoute: '/camera',
-          child: CameraScreen(),
+          child: EnhancedCameraScreen(),
         ),
         '/budget': (context) => AppNavigationShell(
           currentRoute: '/budget',
