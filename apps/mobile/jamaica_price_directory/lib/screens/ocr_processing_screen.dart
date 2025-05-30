@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:jamaica_price_directory/screens/enhanced_ocr_results_screen.dart';
 import 'package:jamaica_price_directory/services/advanced_ocr_processor.dart';
-import 'ocr_results_screen.dart';
 
 // OCR Processing Screen - Extract text and prices from captured image
 class OCRProcessingScreen extends StatefulWidget {

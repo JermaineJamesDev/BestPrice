@@ -223,7 +223,7 @@ class AdvancedOCRProcessor {
       final processedImage = _resizeForOCR(enhancedImage);
       final bytes = img.encodeJpg(processedImage, quality: 95);
       
-      final tempFile = File('${Directory.systemTemp.path}/temp_ocr_${strategy.name}_${startTime}.jpg');
+      final tempFile = File('${Directory.systemTemp.path}/temp_ocr_${strategy.name}_$startTime.jpg');
       await tempFile.writeAsBytes(bytes);
       
       final inputImage = InputImage.fromFilePath(tempFile.path);

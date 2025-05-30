@@ -28,8 +28,8 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
   String _fullText = '';
   String? _errorMessage;
   EnhancementType? _bestEnhancement;
-  int _totalEnhancements = 6;
-  int _currentEnhancement = 0;
+  final int _totalEnhancements = 6;
+  final int _currentEnhancement = 0;
 
   late AnimationController _progressController;
   late AnimationController _pulseController;

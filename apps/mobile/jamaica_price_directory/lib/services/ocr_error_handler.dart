@@ -295,7 +295,7 @@ class OCRTestFramework {
     
     for (int i = 0; i < errorTests.length; i++) {
       try {
-        await errorTests[i]();
+        errorTests[i]();
       } catch (e) {
         final errorMessage = OCRErrorHandler.getErrorMessage(e);
         final isRetryable = OCRErrorHandler.isRetryable(e);
@@ -512,7 +512,7 @@ class OCRIntegrationTestWidget extends StatefulWidget {
 }
 
 class _OCRIntegrationTestWidgetState extends State<OCRIntegrationTestWidget> {
-  List<String> _testResults = [];
+  final List<String> _testResults = [];
   bool _isRunning = false;
   
   @override

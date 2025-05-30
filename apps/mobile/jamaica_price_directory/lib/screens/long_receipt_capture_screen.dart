@@ -16,12 +16,12 @@ class LongReceiptCaptureScreen extends StatefulWidget {
 class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
     with WidgetsBindingObserver {
   CameraController? _cameraController;
-  List<CameraDescription> _cameras = [];
+  final List<CameraDescription> _cameras = [];
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
   
   // Multi-section capture state
-  List<ReceiptSection> _capturedSections = [];
+  final List<ReceiptSection> _capturedSections = [];
   int _currentSection = 1;
   bool _isProcessing = false;
   String? _guideText;
