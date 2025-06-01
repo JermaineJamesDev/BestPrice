@@ -15,8 +15,9 @@ import '../utils/ocr_image_utils.dart';
 
 class ConsolidatedOCRService {
   static ConsolidatedOCRService? _instance;
-  static ConsolidatedOCRService get instance => _instance ??= ConsolidatedOCRService._();
-  
+  static ConsolidatedOCRService get instance =>
+      _instance ??= ConsolidatedOCRService._();
+
   ConsolidatedOCRService._();
 
   late TextRecognizer _textRecognizer;
@@ -30,6 +31,9 @@ class ConsolidatedOCRService {
   static const int maxConcurrentProcessing = 2;
   static const Duration processingTimeout = Duration(seconds: 30);
   static const int maxFileSize = 10 * 1024 * 1024;
+
+  static DateTime? _lastProcessingTime;
+  static const Duration _minProcessingInterval = Duration(milliseconds: 500);
 
   // Store profile for PriceSmart
   static final _priceSmartProfile = StoreProfile(
@@ -56,10 +60,10 @@ class ConsolidatedOCRService {
       _cacheManager = _config.usePersistentCache
           ? OCRCacheManager()
           : MemoryOnlyCacheManager();
-      
+
       // Initialize temp directory for processing
       _tempDirectory = await getTemporaryDirectory();
-      
+
       await _cacheManager.initialize();
 
       if (_config.enablePerformanceMonitoring) {
@@ -74,13 +78,36 @@ class ConsolidatedOCRService {
     }
   }
 
+  static bool _shouldSkipProcessing() {
+    final now = DateTime.now();
+    if (_lastProcessingTime != null) {
+      final timeSinceLastProcessing = now.difference(_lastProcessingTime!);
+      if (timeSinceLastProcessing < _minProcessingInterval) {
+        return true;
+      }
+    }
+    _lastProcessingTime = now;
+    return false;
+  }
+
   Future<OCRResult> processSingleReceipt(
     String imagePath, {
     ProcessingPriority priority = ProcessingPriority.normal,
     CancellationToken? cancellationToken,
   }) async {
+    if (_shouldSkipProcessing()) {
+      debugPrint('⏭️ Skipping OCR - too frequent');
+      return OCRResult(
+        fullText: '',
+        prices: [],
+        confidence: 0.0,
+        enhancement: EnhancementType.original,
+        storeType: 'skipped',
+        metadata: {'skipped': true},
+      );
+    }
     _ensureInitialized();
-    
+
     final stopwatch = Stopwatch()..start();
     final sessionId = _generateSessionId();
     final token = cancellationToken ?? CancellationToken();
@@ -94,7 +121,7 @@ class ConsolidatedOCRService {
         return cached;
       }
 
-      await _waitForProcessingSlot(priority);
+      await _waitForProcessingSlot(priority, _currentProcessingTasks);
       _currentProcessingTasks++;
       _activeTasks.add(token);
 
@@ -107,12 +134,25 @@ class ConsolidatedOCRService {
       await _cacheManager.cacheResult(cacheKey, result);
 
       stopwatch.stop();
-      await _logPerformance(sessionId, imagePath, stopwatch.elapsedMilliseconds, result, false);
+      await _logPerformance(
+        sessionId,
+        imagePath,
+        stopwatch.elapsedMilliseconds,
+        result,
+        false,
+      );
 
       return result;
     } catch (e) {
       stopwatch.stop();
-      await _logPerformance(sessionId, imagePath, stopwatch.elapsedMilliseconds, null, false, e.toString());
+      await _logPerformance(
+        sessionId,
+        imagePath,
+        stopwatch.elapsedMilliseconds,
+        null,
+        false,
+        e.toString(),
+      );
       rethrow;
     } finally {
       _currentProcessingTasks--;
@@ -126,7 +166,7 @@ class ConsolidatedOCRService {
     CancellationToken? cancellationToken,
   }) async {
     _ensureInitialized();
-    
+
     if (sectionPaths.isEmpty) {
       throw OCRException(
         'No receipt sections provided',
@@ -146,7 +186,7 @@ class ConsolidatedOCRService {
         return cached;
       }
 
-      await _waitForProcessingSlot(priority);
+      await _waitForProcessingSlot(priority, _currentProcessingTasks);
       _currentProcessingTasks++;
       _activeTasks.add(token);
 
@@ -156,7 +196,9 @@ class ConsolidatedOCRService {
           throw CancellationException('Long receipt processing cancelled');
         }
 
-        debugPrint('ConsolidatedOCRService: Processing section ${i + 1}/${sectionPaths.length}');
+        debugPrint(
+          'ConsolidatedOCRService: Processing section ${i + 1}/${sectionPaths.length}',
+        );
         final sectionResult = await _processImageInternal(
           sectionPaths[i],
           isLongReceipt: true,
@@ -169,12 +211,25 @@ class ConsolidatedOCRService {
       await _cacheManager.cacheResult(cacheKey, mergedResult);
 
       stopwatch.stop();
-      await _logPerformance(sessionId, cacheKey, stopwatch.elapsedMilliseconds, mergedResult, true);
+      await _logPerformance(
+        sessionId,
+        cacheKey,
+        stopwatch.elapsedMilliseconds,
+        mergedResult,
+        true,
+      );
 
       return mergedResult;
     } catch (e) {
       stopwatch.stop();
-      await _logPerformance(sessionId, sectionPaths.first, stopwatch.elapsedMilliseconds, null, true, e.toString());
+      await _logPerformance(
+        sessionId,
+        sectionPaths.first,
+        stopwatch.elapsedMilliseconds,
+        null,
+        true,
+        e.toString(),
+      );
       rethrow;
     } finally {
       _currentProcessingTasks--;
@@ -188,17 +243,23 @@ class ConsolidatedOCRService {
     CancellationToken? cancellationToken,
   }) async {
     String? tempProcessedPath;
-    
+
     try {
       // Validate original image file
       final originalFile = File(imagePath);
       if (!await originalFile.exists()) {
-        throw OCRException('Image file not found: $imagePath', type: OCRErrorType.imageNotFound);
+        throw OCRException(
+          'Image file not found: $imagePath',
+          type: OCRErrorType.imageNotFound,
+        );
       }
 
       final fileSize = await originalFile.length();
       if (fileSize > maxFileSize) {
-        throw OCRException('Image file too large: ${fileSize / (1024 * 1024)}MB', type: OCRErrorType.imageTooLarge);
+        throw OCRException(
+          'Image file too large: ${fileSize / (1024 * 1024)}MB',
+          type: OCRErrorType.imageTooLarge,
+        );
       }
 
       if (cancellationToken?.isCancelled == true) {
@@ -209,7 +270,10 @@ class ConsolidatedOCRService {
       final originalBytes = await originalFile.readAsBytes();
       final image = img.decodeImage(originalBytes);
       if (image == null) {
-        throw OCRException('Failed to decode image', type: OCRErrorType.imageCorrupted);
+        throw OCRException(
+          'Failed to decode image',
+          type: OCRErrorType.imageCorrupted,
+        );
       }
 
       if (cancellationToken?.isCancelled == true) {
@@ -225,7 +289,10 @@ class ConsolidatedOCRService {
       // Save preprocessed image to temporary file for ML Kit
       tempProcessedPath = await _saveImageToTempFile(preprocessed);
       if (tempProcessedPath == null) {
-        throw OCRException('Failed to save preprocessed image', type: OCRErrorType.processingFailed);
+        throw OCRException(
+          'Failed to save preprocessed image',
+          type: OCRErrorType.processingFailed,
+        );
       }
 
       if (cancellationToken?.isCancelled == true) {
@@ -246,8 +313,15 @@ class ConsolidatedOCRService {
         throw CancellationException();
       }
 
-      final enhancedPrices = _enhancePricesWithNLP(extractedPrices, recognizedText.text, storeType);
-      final confidence = _calculateOverallConfidence(enhancedPrices, recognizedText);
+      final enhancedPrices = _enhancePricesWithNLP(
+        extractedPrices,
+        recognizedText.text,
+        storeType,
+      );
+      final confidence = _calculateOverallConfidence(
+        enhancedPrices,
+        recognizedText,
+      );
 
       return OCRResult(
         fullText: recognizedText.text,
@@ -290,11 +364,11 @@ class ConsolidatedOCRService {
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final tempPath = '${_tempDirectory!.path}/ocr_temp_$timestamp.jpg';
-      
+
       final jpegBytes = img.encodeJpg(image, quality: 90);
       final tempFile = File(tempPath);
       await tempFile.writeAsBytes(jpegBytes);
-      
+
       return tempPath;
     } catch (e) {
       debugPrint('Failed to save image to temp file: $e');
@@ -314,11 +388,12 @@ class ConsolidatedOCRService {
   Future<RecognizedText> _performOCRFromFile(String imagePath) async {
     try {
       final inputImage = InputImage.fromFilePath(imagePath);
-      return await _textRecognizer.processImage(inputImage)
+      return await _textRecognizer
+          .processImage(inputImage)
           .timeout(processingTimeout);
     } catch (e) {
       debugPrint('OCR from file failed: $e');
-      
+
       // Fallback: try with bytes if file method fails
       try {
         final file = File(imagePath);
@@ -339,7 +414,10 @@ class ConsolidatedOCRService {
       // Decode image to get proper dimensions
       final image = img.decodeImage(Uint8List.fromList(bytes));
       if (image == null) {
-        throw OCRException('Failed to decode image for OCR', type: OCRErrorType.imageCorrupted);
+        throw OCRException(
+          'Failed to decode image for OCR',
+          type: OCRErrorType.imageCorrupted,
+        );
       }
 
       final inputImage = InputImage.fromBytes(
@@ -347,12 +425,13 @@ class ConsolidatedOCRService {
         metadata: InputImageMetadata(
           size: Size(image.width.toDouble(), image.height.toDouble()),
           rotation: InputImageRotation.rotation0deg,
-          format: InputImageFormat.nv21, 
+          format: InputImageFormat.nv21,
           bytesPerRow: image.width,
         ),
       );
 
-      return await _textRecognizer.processImage(inputImage)
+      return await _textRecognizer
+          .processImage(inputImage)
           .timeout(processingTimeout);
     } catch (e) {
       throw OCRException(
@@ -365,16 +444,39 @@ class ConsolidatedOCRService {
   // Store detection method
   String _detectStoreType(String text) {
     final lowerText = text.toLowerCase();
-    
-    for (final pattern in _priceSmartProfile.patterns) {
+
+    // explore later
+    /* for (final pattern in _priceSmartProfile.patterns) {
       if (pattern.hasMatch(lowerText)) {
         debugPrint('✅ Detected store: PriceSmart');
         return 'pricesmart';
       }
-    }
+    } */
 
-    if (lowerText.contains('supermarket') || lowerText.contains('grocery')) {
-      return 'generic_supermarket';
+    final storePatterns = {
+      'pricesmart': [
+        RegExp(r'price\s*smart', caseSensitive: false),
+        RegExp(r'pricesmart', caseSensitive: false),
+        RegExp(r'ps\s*membership', caseSensitive: false),
+      ],
+      'megamart': [
+        RegExp(r'mega\s*mart', caseSensitive: false),
+        RegExp(r'megamart', caseSensitive: false),
+      ],
+      'hi-lo': [
+        RegExp(r'hi[\s-]*lo', caseSensitive: false),
+        RegExp(r'hilo', caseSensitive: false),
+      ],
+      // Add more stores as needed
+    };
+
+    for (final entry in storePatterns.entries) {
+      for (final pattern in entry.value) {
+        if (pattern.hasMatch(lowerText)) {
+          debugPrint('✅ Detected store: ${entry.key}');
+          return entry.key;
+        }
+      }
     }
 
     debugPrint('⚠️ Store type not detected, using generic');
@@ -382,17 +484,23 @@ class ConsolidatedOCRService {
   }
 
   // Price extraction methods
-  List<ExtractedPrice> _extractPrices(RecognizedText recognizedText, String storeType) {
+  List<ExtractedPrice> _extractPrices(
+    RecognizedText recognizedText,
+    String storeType,
+  ) {
     final prices = <ExtractedPrice>[];
-    
+
     prices.addAll(_extractWithStorePatterns(recognizedText, storeType));
     prices.addAll(_extractWithGenericPatterns(recognizedText));
     prices.addAll(_extractFromLines(recognizedText));
-    
+
     return _deduplicateAndValidatePrices(prices);
   }
 
-  List<ExtractedPrice> _extractWithStorePatterns(RecognizedText recognizedText, String storeType) {
+  List<ExtractedPrice> _extractWithStorePatterns(
+    RecognizedText recognizedText,
+    String storeType,
+  ) {
     final prices = <ExtractedPrice>[];
     List<RegExp> patterns;
 
@@ -417,20 +525,25 @@ class ConsolidatedOCRService {
             final priceStr = match.group(2) ?? match.group(3) ?? '';
             final price = double.tryParse(priceStr);
 
-            if (price != null && price > 0 && price < 50000 && itemName.isNotEmpty) {
-              prices.add(ExtractedPrice(
-                itemName: itemName,
-                price: price,
-                originalText: text,
-                confidence: _calculatePatternConfidence(match, text),
-                position: _convertBoundingBox(line.boundingBox),
-                category: 'Other',
-                unit: 'each',
-                metadata: {
-                  'extraction_method': 'store_pattern',
-                  'store_type': storeType,
-                },
-              ));
+            if (price != null &&
+                price > 0 &&
+                price < 50000 &&
+                itemName.isNotEmpty) {
+              prices.add(
+                ExtractedPrice(
+                  itemName: itemName,
+                  price: price,
+                  originalText: text,
+                  confidence: _calculatePatternConfidence(match, text),
+                  position: _convertBoundingBox(line.boundingBox),
+                  category: 'Other',
+                  unit: 'each',
+                  metadata: {
+                    'extraction_method': 'store_pattern',
+                    'store_type': storeType,
+                  },
+                ),
+              );
             }
           }
         }
@@ -440,7 +553,9 @@ class ConsolidatedOCRService {
     return prices;
   }
 
-  List<ExtractedPrice> _extractWithGenericPatterns(RecognizedText recognizedText) {
+  List<ExtractedPrice> _extractWithGenericPatterns(
+    RecognizedText recognizedText,
+  ) {
     final prices = <ExtractedPrice>[];
     final patterns = [
       RegExp(r'(\w+(?:\s+\w+)*)\s+(\d+\.\d{2})\s*$', multiLine: true),
@@ -460,17 +575,22 @@ class ConsolidatedOCRService {
             final priceStr = match.group(2) ?? '';
             final price = double.tryParse(priceStr);
 
-            if (price != null && price > 0 && price < 50000 && itemName.isNotEmpty) {
-              prices.add(ExtractedPrice(
-                itemName: itemName,
-                price: price,
-                originalText: text,
-                confidence: _calculatePatternConfidence(match, text),
-                position: _convertBoundingBox(line.boundingBox),
-                category: 'Other',
-                unit: 'each',
-                metadata: {'extraction_method': 'generic_pattern'},
-              ));
+            if (price != null &&
+                price > 0 &&
+                price < 50000 &&
+                itemName.isNotEmpty) {
+              prices.add(
+                ExtractedPrice(
+                  itemName: itemName,
+                  price: price,
+                  originalText: text,
+                  confidence: _calculatePatternConfidence(match, text),
+                  position: _convertBoundingBox(line.boundingBox),
+                  category: 'Other',
+                  unit: 'each',
+                  metadata: {'extraction_method': 'generic_pattern'},
+                ),
+              );
             }
           }
         }
@@ -496,16 +616,18 @@ class ConsolidatedOCRService {
           if (price != null && price > 0 && price < 50000) {
             final itemName = text.substring(0, priceMatch.start).trim();
             if (itemName.isNotEmpty) {
-              prices.add(ExtractedPrice(
-                itemName: itemName,
-                price: price,
-                originalText: text,
-                confidence: 0.7,
-                position: _convertBoundingBox(line.boundingBox),
-                category: 'Other',
-                unit: 'each',
-                metadata: {'extraction_method': 'line_analysis'},
-              ));
+              prices.add(
+                ExtractedPrice(
+                  itemName: itemName,
+                  price: price,
+                  originalText: text,
+                  confidence: 0.7,
+                  position: _convertBoundingBox(line.boundingBox),
+                  category: 'Other',
+                  unit: 'each',
+                  metadata: {'extraction_method': 'line_analysis'},
+                ),
+              );
             }
           }
         }
@@ -516,7 +638,11 @@ class ConsolidatedOCRService {
   }
 
   // NLP enhancement methods
-  List<ExtractedPrice> _enhancePricesWithNLP(List<ExtractedPrice> prices, String fullText, String storeType) {
+  List<ExtractedPrice> _enhancePricesWithNLP(
+    List<ExtractedPrice> prices,
+    String fullText,
+    String storeType,
+  ) {
     final enhanced = <ExtractedPrice>[];
 
     for (final price in prices) {
@@ -525,20 +651,22 @@ class ConsolidatedOCRService {
       final unit = _detectUnit(price.originalText, category);
 
       if (_validatePrice(price.price, category, storeType)) {
-        enhanced.add(ExtractedPrice(
-          itemName: cleanedName,
-          price: price.price,
-          originalText: price.originalText,
-          confidence: (price.confidence * 1.1).clamp(0.0, 1.0),
-          position: price.position,
-          category: category,
-          unit: unit,
-          metadata: {
-            ...price.metadata ?? {},
-            'nlp_enhanced': true,
-            'original_name': price.itemName,
-          },
-        ));
+        enhanced.add(
+          ExtractedPrice(
+            itemName: cleanedName,
+            price: price.price,
+            originalText: price.originalText,
+            confidence: (price.confidence * 1.1).clamp(0.0, 1.0),
+            position: price.position,
+            category: category,
+            unit: unit,
+            metadata: {
+              ...price.metadata ?? {},
+              'nlp_enhanced': true,
+              'original_name': price.itemName,
+            },
+          ),
+        );
       }
     }
 
@@ -553,21 +681,41 @@ class ConsolidatedOCRService {
     cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ');
     cleaned = cleaned.trim();
 
-    return cleaned.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
+    return cleaned
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
   }
 
   String _detectCategory(String itemName, String originalText) {
     final text = '$itemName $originalText'.toLowerCase();
-    
+
     final categoryKeywords = {
       'Meat': ['chicken', 'beef', 'pork', 'fish', 'meat', 'bacon', 'ham'],
-      'Produce': ['apple', 'banana', 'orange', 'lettuce', 'tomato', 'onion', 'fruit', 'vegetable'],
+      'Produce': [
+        'apple',
+        'banana',
+        'orange',
+        'lettuce',
+        'tomato',
+        'onion',
+        'fruit',
+        'vegetable',
+      ],
       'Dairy': ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs'],
       'Beverages': ['juice', 'soda', 'water', 'drink', 'cola', 'beer', 'wine'],
-      'Groceries': ['rice', 'bread', 'flour', 'sugar', 'oil', 'pasta', 'cereal'],
+      'Groceries': [
+        'rice',
+        'bread',
+        'flour',
+        'sugar',
+        'oil',
+        'pasta',
+        'cereal',
+      ],
       'Household': ['soap', 'detergent', 'tissue', 'paper', 'cleaning'],
     };
 
@@ -618,7 +766,7 @@ class ConsolidatedOCRService {
     };
 
     final range = priceRanges[category] ?? priceRanges['Other']!;
-    final minPrice = storeType == 'pricesmart' 
+    final minPrice = storeType == 'pricesmart'
         ? max(range['min']! * 2, 100.0)
         : range['min']!.toDouble();
 
@@ -626,12 +774,14 @@ class ConsolidatedOCRService {
   }
 
   // Deduplication and validation
-  List<ExtractedPrice> _deduplicateAndValidatePrices(List<ExtractedPrice> prices) {
+  List<ExtractedPrice> _deduplicateAndValidatePrices(
+    List<ExtractedPrice> prices,
+  ) {
     final unique = <ExtractedPrice>[];
 
     for (final price in prices) {
       bool isDuplicate = false;
-      
+
       for (int i = 0; i < unique.length; i++) {
         if (_areSimilarPrices(price, unique[i])) {
           if (price.confidence > unique[i].confidence) {
@@ -653,7 +803,10 @@ class ConsolidatedOCRService {
 
   bool _areSimilarPrices(ExtractedPrice price1, ExtractedPrice price2) {
     if ((price1.price - price2.price).abs() < 0.01) {
-      final distance = _calculateDistance(price1.position.center, price2.position.center);
+      final distance = _calculateDistance(
+        price1.position.center,
+        price2.position.center,
+      );
       return distance < 50;
     }
     return false;
@@ -681,7 +834,9 @@ class ConsolidatedOCRService {
     }
 
     final uniquePrices = _removeSemanticDuplicates(allPrices);
-    final avgConfidence = sectionResults.isNotEmpty ? totalConfidence / sectionResults.length : 0.0;
+    final avgConfidence = sectionResults.isNotEmpty
+        ? totalConfidence / sectionResults.length
+        : 0.0;
 
     return OCRResult(
       fullText: allText.join('\n\n'),
@@ -702,7 +857,7 @@ class ConsolidatedOCRService {
 
     for (final price in prices) {
       bool isDuplicate = false;
-      
+
       for (int i = 0; i < unique.length; i++) {
         if (_areSemanticallySimilar(price, unique[i])) {
           if (price.confidence > unique[i].confidence) {
@@ -728,7 +883,8 @@ class ConsolidatedOCRService {
     );
 
     if (nameSimilarity > 0.8) {
-      final priceDiff = (price1.price - price2.price).abs() / max(price1.price, price2.price);
+      final priceDiff =
+          (price1.price - price2.price).abs() / max(price1.price, price2.price);
       return priceDiff < 0.15;
     }
 
@@ -748,10 +904,14 @@ class ConsolidatedOCRService {
   }
 
   // Confidence calculation
-  double _calculateOverallConfidence(List<ExtractedPrice> prices, RecognizedText recognizedText) {
+  double _calculateOverallConfidence(
+    List<ExtractedPrice> prices,
+    RecognizedText recognizedText,
+  ) {
     if (prices.isEmpty) return 0.0;
 
-    final avgPriceConfidence = prices.map((p) => p.confidence).reduce((a, b) => a + b) / prices.length;
+    final avgPriceConfidence =
+        prices.map((p) => p.confidence).reduce((a, b) => a + b) / prices.length;
 
     double textConfidence = 0.8;
     int elementCount = 0;
@@ -792,8 +952,19 @@ class ConsolidatedOCRService {
   bool _isNonProductLine(String text) {
     final lowerText = text.toLowerCase().trim();
     final skipPatterns = [
-      'total', 'subtotal', 'tax', 'cash', 'change', 'thank', 'receipt',
-      'date', 'time', 'cashier', 'transaction', 'balance', 'tender'
+      'total',
+      'subtotal',
+      'tax',
+      'cash',
+      'change',
+      'thank',
+      'receipt',
+      'date',
+      'time',
+      'cashier',
+      'transaction',
+      'balance',
+      'tender',
     ];
 
     for (final pattern in skipPatterns) {
@@ -812,9 +983,23 @@ class ConsolidatedOCRService {
   }
 
   // Utility methods
-  Future<void> _waitForProcessingSlot(ProcessingPriority priority) async {
-    while (_currentProcessingTasks >= maxConcurrentProcessing) {
-      await Future.delayed(Duration(milliseconds: 500));
+  static Future<void> _waitForProcessingSlot(
+    ProcessingPriority priority,
+    int currentProcessingTasks,
+  ) async {
+    int waitTime = 0;
+    const maxWaitTime = 5000; // 5 seconds max wait
+
+    while (currentProcessingTasks >= maxConcurrentProcessing) {
+      if (waitTime >= maxWaitTime) {
+        throw OCRException(
+          'Processing queue timeout',
+          type: OCRErrorType.ocrTimeout,
+        );
+      }
+
+      await Future.delayed(Duration(milliseconds: 100));
+      waitTime += 100;
     }
   }
 
@@ -834,7 +1019,14 @@ class ConsolidatedOCRService {
     return 'consolidated_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}';
   }
 
-  Future<void> _logPerformance(String sessionId, String imagePath, int processingTime, OCRResult? result, bool isLongReceipt, [String? error]) async {
+  Future<void> _logPerformance(
+    String sessionId,
+    String imagePath,
+    int processingTime,
+    OCRResult? result,
+    bool isLongReceipt, [
+    String? error,
+  ]) async {
     if (!_config.enablePerformanceMonitoring) return;
 
     await OCRPerformanceMonitor.logOCRAttempt(
@@ -1011,7 +1203,7 @@ class SystemPerformanceMetrics {
 class CancellationToken {
   bool _isCancelled = false;
   bool get isCancelled => _isCancelled;
-  
+
   void cancel() {
     _isCancelled = true;
   }
@@ -1019,7 +1211,17 @@ class CancellationToken {
 
 // Enums
 enum ProcessingPriority { low, normal, high }
-enum EnhancementType { original, contrast, brightness, sharpen, grayscale, binarize, hybrid }
+
+enum EnhancementType {
+  original,
+  contrast,
+  brightness,
+  sharpen,
+  grayscale,
+  binarize,
+  hybrid,
+}
+
 enum ThermalState { nominal, fair, serious, critical }
 
 class CancellationException implements Exception {

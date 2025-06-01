@@ -376,6 +376,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                       vertical: 8,
                     ),
                     prefixIcon: Icon(Icons.store),
+                    isCollapsed: true,
                   ),
                   items: _stores.map((store) {
                     return DropdownMenuItem(value: store, child: Text(store));
@@ -387,7 +388,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                   },
                 ),
               ),
-              SizedBox(width: 12),
+              Spacer(),
               Expanded(
                 child: DropdownButtonFormField<String>(
                   value: _selectedParish,
@@ -401,6 +402,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                       vertical: 8,
                     ),
                     prefixIcon: Icon(Icons.location_on),
+                    isCollapsed: true,
                   ),
                   items: _parishes.map((parish) {
                     return DropdownMenuItem(value: parish, child: Text(parish));

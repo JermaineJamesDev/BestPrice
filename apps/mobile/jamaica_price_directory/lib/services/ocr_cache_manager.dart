@@ -25,7 +25,7 @@ class OCRCacheManager implements ICacheManager {
   static const Duration _cacheExpiration = Duration(days: 7);
   static const String _cacheFileName = 'ocr_cache.json';
   static const String _cacheDirectory = 'ocr_cache';
-  
+
   final Map<String, CachedOCRResult> _memoryCache = {};
   late Directory _cacheDir;
   late File _indexFile;
@@ -36,18 +36,29 @@ class OCRCacheManager implements ICacheManager {
     try {
       final appDir = await getApplicationDocumentsDirectory();
       _cacheDir = Directory('${appDir.path}/$_cacheDirectory');
-      
+
+      // Ensure directory exists
       if (!await _cacheDir.exists()) {
         await _cacheDir.create(recursive: true);
+        debugPrint('✅ Created cache directory: ${_cacheDir.path}');
       }
-      
+
       _indexFile = File('${_cacheDir.path}/$_cacheFileName');
-      
+
+      // Create index file if it doesn't exist
+      if (!await _indexFile.exists()) {
+        await _indexFile.create();
+        await _indexFile.writeAsString('{"entries": []}');
+        debugPrint('✅ Created cache index file');
+      }
+
       await _loadCacheIndex();
       await _cleanExpiredEntries();
-      
+
       _isInitialized = true;
-      debugPrint('✅ OCR Cache Manager initialized - ${_memoryCache.length} entries loaded');
+      debugPrint(
+        '✅ OCR Cache Manager initialized - ${_memoryCache.length} entries loaded',
+      );
     } catch (e) {
       debugPrint('❌ Failed to initialize cache: $e');
       _isInitialized = false;
@@ -57,26 +68,26 @@ class OCRCacheManager implements ICacheManager {
   @override
   Future<OCRResult?> getCachedResult(String imagePath) async {
     if (!_isInitialized) return null;
-    
+
     try {
       final cacheKey = _generateCacheKey(imagePath);
       final cachedResult = _memoryCache[cacheKey];
-      
+
       if (cachedResult == null) {
         return null;
       }
-      
+
       // Check if expired
       if (DateTime.now().isAfter(cachedResult.expiresAt)) {
         await _removeCacheEntry(cacheKey);
         return null;
       }
-      
+
       // Update access time for LRU
       _memoryCache[cacheKey] = cachedResult.copyWith(
         lastAccessed: DateTime.now(),
       );
-      
+
       debugPrint('✅ Cache hit for: $cacheKey');
       return cachedResult.result;
     } catch (e) {
@@ -88,11 +99,11 @@ class OCRCacheManager implements ICacheManager {
   @override
   Future<void> cacheResult(String imagePath, OCRResult result) async {
     if (!_isInitialized) return;
-    
+
     try {
       final cacheKey = _generateCacheKey(imagePath);
       final now = DateTime.now();
-      
+
       final cachedResult = CachedOCRResult(
         key: cacheKey,
         result: result,
@@ -102,16 +113,16 @@ class OCRCacheManager implements ICacheManager {
         filePath: imagePath,
         fileSize: await _getFileSize(imagePath),
       );
-      
+
       // Add to memory cache
       _memoryCache[cacheKey] = cachedResult;
-      
+
       // Maintain cache size limit
       await _enforceCacheLimit();
-      
+
       // Persist to disk
       await _saveCacheIndex();
-      
+
       debugPrint('✅ Cached result for: $cacheKey');
     } catch (e) {
       debugPrint('❌ Cache storage failed: $e');
@@ -122,11 +133,11 @@ class OCRCacheManager implements ICacheManager {
   Future<void> clear() async {
     try {
       _memoryCache.clear();
-      
+
       if (await _indexFile.exists()) {
         await _indexFile.delete();
       }
-      
+
       // Clear cache directory
       if (await _cacheDir.exists()) {
         await for (final entity in _cacheDir.list()) {
@@ -135,7 +146,7 @@ class OCRCacheManager implements ICacheManager {
           }
         }
       }
-      
+
       debugPrint('✅ Cache cleared');
     } catch (e) {
       debugPrint('❌ Cache clear failed: $e');
@@ -145,18 +156,18 @@ class OCRCacheManager implements ICacheManager {
   @override
   Future<void> clearExpired() async {
     if (!_isInitialized) return;
-    
+
     try {
       final now = DateTime.now();
       final expiredKeys = _memoryCache.entries
           .where((entry) => now.isAfter(entry.value.expiresAt))
           .map((entry) => entry.key)
           .toList();
-      
+
       for (final key in expiredKeys) {
         await _removeCacheEntry(key);
       }
-      
+
       if (expiredKeys.isNotEmpty) {
         await _saveCacheIndex();
         debugPrint('✅ Removed ${expiredKeys.length} expired cache entries');
@@ -183,15 +194,15 @@ class OCRCacheManager implements ICacheManager {
       if (!await _indexFile.exists()) {
         return;
       }
-      
+
       final content = await _indexFile.readAsString();
       if (content.trim().isEmpty) {
         return;
       }
-      
+
       final Map<String, dynamic> cacheData = jsonDecode(content);
       final List<dynamic> entries = cacheData['entries'] ?? [];
-      
+
       for (final entryData in entries) {
         try {
           final cachedResult = CachedOCRResult.fromJson(entryData);
@@ -214,7 +225,7 @@ class OCRCacheManager implements ICacheManager {
         'created_at': DateTime.now().toIso8601String(),
         'entries': _memoryCache.values.map((e) => e.toJson()).toList(),
       };
-      
+
       await _indexFile.writeAsString(
         jsonEncode(cacheData),
         mode: FileMode.write,
@@ -230,17 +241,17 @@ class OCRCacheManager implements ICacheManager {
 
   Future<void> _enforceCacheLimit() async {
     if (_memoryCache.length <= _maxCacheSize) return;
-    
+
     // Sort by last accessed time (LRU)
     final sortedEntries = _memoryCache.entries.toList()
       ..sort((a, b) => a.value.lastAccessed.compareTo(b.value.lastAccessed));
-    
+
     // Remove oldest entries
     final toRemove = sortedEntries.length - _maxCacheSize;
     for (int i = 0; i < toRemove; i++) {
       await _removeCacheEntry(sortedEntries[i].key);
     }
-    
+
     debugPrint('✅ Enforced cache limit - removed $toRemove entries');
   }
 
@@ -269,8 +280,10 @@ class OCRCacheManager implements ICacheManager {
 // Alternative Memory-only Cache Implementation
 class MemoryOnlyCacheManager implements ICacheManager {
   static const int _maxCacheSize = 50; // Smaller for memory-only
-  static const Duration _cacheExpiration = Duration(hours: 2); // Shorter for memory
-  
+  static const Duration _cacheExpiration = Duration(
+    hours: 2,
+  ); // Shorter for memory
+
   final Map<String, CachedOCRResult> _cache = {};
 
   @override
@@ -282,14 +295,14 @@ class MemoryOnlyCacheManager implements ICacheManager {
   Future<OCRResult?> getCachedResult(String imagePath) async {
     final cacheKey = _generateCacheKey(imagePath);
     final cached = _cache[cacheKey];
-    
+
     if (cached == null) return null;
-    
+
     if (DateTime.now().isAfter(cached.expiresAt)) {
       _cache.remove(cacheKey);
       return null;
     }
-    
+
     // Update access time
     _cache[cacheKey] = cached.copyWith(lastAccessed: DateTime.now());
     return cached.result;
@@ -299,7 +312,7 @@ class MemoryOnlyCacheManager implements ICacheManager {
   Future<void> cacheResult(String imagePath, OCRResult result) async {
     final cacheKey = _generateCacheKey(imagePath);
     final now = DateTime.now();
-    
+
     _cache[cacheKey] = CachedOCRResult(
       key: cacheKey,
       result: result,
@@ -309,7 +322,7 @@ class MemoryOnlyCacheManager implements ICacheManager {
       filePath: imagePath,
       fileSize: 0,
     );
-    
+
     await _enforceCacheLimit();
   }
 
@@ -336,10 +349,10 @@ class MemoryOnlyCacheManager implements ICacheManager {
 
   Future<void> _enforceCacheLimit() async {
     if (_cache.length <= _maxCacheSize) return;
-    
+
     final sortedEntries = _cache.entries.toList()
       ..sort((a, b) => a.value.lastAccessed.compareTo(b.value.lastAccessed));
-    
+
     final toRemove = _cache.length - _maxCacheSize;
     for (int i = 0; i < toRemove; i++) {
       _cache.remove(sortedEntries[i].key);
@@ -429,9 +442,7 @@ class CachedOCRResult {
   static OCRResult _ocrResultFromJson(Map<String, dynamic> json) {
     return OCRResult(
       fullText: json['full_text'],
-      prices: (json['prices'] as List)
-          .map((p) => _priceFromJson(p))
-          .toList(),
+      prices: (json['prices'] as List).map((p) => _priceFromJson(p)).toList(),
       confidence: json['confidence'].toDouble(),
       enhancement: _enhancementFromString(json['enhancement']),
       storeType: json['store_type'],
@@ -472,7 +483,7 @@ class CachedOCRResult {
       ),
       category: json['category'],
       unit: json['unit'],
-      metadata: json['metadata'] != null 
+      metadata: json['metadata'] != null
           ? Map<String, dynamic>.from(json['metadata'])
           : null,
     );
@@ -540,17 +551,14 @@ class CacheConfig {
 class AdvancedCacheManager implements ICacheManager {
   final CacheConfig config;
   final ICacheManager _delegate;
-  
+
   int _hitCount = 0;
   int _missCount = 0;
 
-  AdvancedCacheManager({
-    required this.config,
-    ICacheManager? delegate,
-  }) : _delegate = delegate ?? 
-    (config.persistToDisk 
-        ? OCRCacheManager() 
-        : MemoryOnlyCacheManager());
+  AdvancedCacheManager({required this.config, ICacheManager? delegate})
+    : _delegate =
+          delegate ??
+          (config.persistToDisk ? OCRCacheManager() : MemoryOnlyCacheManager());
 
   @override
   Future<void> initialize() async {
@@ -560,13 +568,13 @@ class AdvancedCacheManager implements ICacheManager {
   @override
   Future<OCRResult?> getCachedResult(String imagePath) async {
     final result = await _delegate.getCachedResult(imagePath);
-    
+
     if (result != null) {
       _hitCount++;
     } else {
       _missCount++;
     }
-    
+
     return result;
   }
 
@@ -595,7 +603,7 @@ class AdvancedCacheManager implements ICacheManager {
   Future<CacheStatistics> getStatistics() async {
     final totalRequests = _hitCount + _missCount;
     final hitRate = totalRequests > 0 ? _hitCount / totalRequests : 0.0;
-    
+
     return CacheStatistics(
       totalEntries: await getCacheSize(),
       hitCount: _hitCount,
@@ -617,10 +625,10 @@ class AdvancedCacheManager implements ICacheManager {
 class CacheManagerFactory {
   static ICacheManager create({CacheConfig? config}) {
     final cacheConfig = config ?? const CacheConfig();
-    
+
     return AdvancedCacheManager(
       config: cacheConfig,
-      delegate: cacheConfig.persistToDisk 
+      delegate: cacheConfig.persistToDisk
           ? OCRCacheManager()
           : MemoryOnlyCacheManager(),
     );

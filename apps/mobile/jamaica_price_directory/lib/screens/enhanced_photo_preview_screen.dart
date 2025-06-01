@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/consolidated_ocr_service.dart' hide OCRException;
@@ -27,6 +28,7 @@ class _EnhancedPhotoPreviewScreenState
   String? _errorMessage;
   int _retryAttempt = 0;
   static const int maxRetryAttempts = 3;
+  Timer? _processingDebouncer;
 
   @override
   void initState() {
@@ -34,12 +36,19 @@ class _EnhancedPhotoPreviewScreenState
     _validateImageFile();
   }
 
+  @override
+  void dispose() {
+    _processingDebouncer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _validateImageFile() async {
     try {
       final file = File(widget.imagePath);
       if (!await file.exists()) {
         setState(() {
-          _errorMessage = 'Image file not found. Please try taking a new photo.';
+          _errorMessage =
+              'Image file not found. Please try taking a new photo.';
         });
         return;
       }
@@ -67,104 +76,112 @@ class _EnhancedPhotoPreviewScreenState
   }
 
   Future<void> _processWithOptimization() async {
-    if (_isProcessing) return;
+    _processingDebouncer?.cancel();
 
-    setState(() {
-      _isProcessing = true;
-      _errorMessage = null;
-    });
+    _processingDebouncer = Timer(Duration(milliseconds: 300), () async {
+      if (_isProcessing) return;
 
-    try {
-      // Validate image file again before processing
-      final file = File(widget.imagePath);
-      if (!await file.exists()) {
-        throw OCRException(
-          'Image file not found',
-          type: OCRErrorType.imageNotFound,
+      setState(() {
+        _isProcessing = true;
+        _errorMessage = null;
+      });
+
+      try {
+        // Validate image file again before processing
+        final file = File(widget.imagePath);
+        if (!await file.exists()) {
+          throw OCRException(
+            'Image file not found',
+            type: OCRErrorType.imageNotFound,
+          );
+        }
+
+        // Determine processing priority based on performance metrics
+        ProcessingPriority priority = ProcessingPriority.normal;
+        if (widget.performanceMetrics != null) {
+          final metrics = widget.performanceMetrics!;
+          if (metrics.memoryUsageMB > 400 || metrics.cpuUsagePercent > 80) {
+            priority = ProcessingPriority.low;
+          } else if (metrics.batteryLevel < 20) {
+            priority = ProcessingPriority.low;
+          }
+        }
+
+        // Create error context for better error handling
+        final errorContext = OCRErrorContext(
+          operation: 'photo_preview_processing',
+          imagePath: widget.imagePath,
+          metadata: {
+            'retry_attempt': _retryAttempt,
+            'priority': priority.toString(),
+            'performance_metrics': widget.performanceMetrics?.toJson(),
+          },
         );
-      }
 
-      // Determine processing priority based on performance metrics
-      ProcessingPriority priority = ProcessingPriority.normal;
-      if (widget.performanceMetrics != null) {
-        final metrics = widget.performanceMetrics!;
-        if (metrics.memoryUsageMB > 400 || metrics.cpuUsagePercent > 80) {
-          priority = ProcessingPriority.low;
-        } else if (metrics.batteryLevel < 20) {
-          priority = ProcessingPriority.low;
+        // Process the image with error recovery
+        final result = await OCRErrorRecovery.executeWithRecovery(
+          () => ConsolidatedOCRService.instance.processSingleReceipt(
+            widget.imagePath,
+            priority: priority,
+            cancellationToken: widget.cancellationToken,
+          ),
+          'photo_preview_ocr',
+          context: errorContext,
+          onError: (error, attempt) {
+            debugPrint('OCR attempt $attempt failed: $error');
+            if (mounted) {
+              setState(() {
+                _retryAttempt = attempt;
+              });
+            }
+          },
+          onRetry: (attempt) {
+            debugPrint('Retrying OCR processing (attempt $attempt)');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Processing failed, retrying... (attempt $attempt)',
+                  ),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          onSuccess: (result) {
+            debugPrint(
+              'OCR processing successful: ${result.prices.length} prices found',
+            );
+          },
+        );
+
+        if (mounted && result != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EnhancedOCRResultsScreen(
+                imagePath: widget.imagePath,
+                extractedPrices: result.prices,
+                fullText: result.fullText,
+                bestEnhancement: result.enhancement,
+                storeType: result.storeType,
+                metadata: result.metadata,
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          _handleProcessingError(e);
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+          });
         }
       }
-
-      // Create error context for better error handling
-      final errorContext = OCRErrorContext(
-        operation: 'photo_preview_processing',
-        imagePath: widget.imagePath,
-        metadata: {
-          'retry_attempt': _retryAttempt,
-          'priority': priority.toString(),
-          'performance_metrics': widget.performanceMetrics?.toJson(),
-        },
-      );
-
-      // Process the image with error recovery
-      final result = await OCRErrorRecovery.executeWithRecovery(
-        () => ConsolidatedOCRService.instance.processSingleReceipt(
-          widget.imagePath,
-          priority: priority,
-          cancellationToken: widget.cancellationToken,
-        ),
-        'photo_preview_ocr',
-        context: errorContext,
-        onError: (error, attempt) {
-          debugPrint('OCR attempt $attempt failed: $error');
-          if (mounted) {
-            setState(() {
-              _retryAttempt = attempt;
-            });
-          }
-        },
-        onRetry: (attempt) {
-          debugPrint('Retrying OCR processing (attempt $attempt)');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Processing failed, retrying... (attempt $attempt)'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        },
-        onSuccess: (result) {
-          debugPrint('OCR processing successful: ${result.prices.length} prices found');
-        },
-      );
-
-      if (mounted && result != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EnhancedOCRResultsScreen(
-              imagePath: widget.imagePath,
-              extractedPrices: result.prices,
-              fullText: result.fullText,
-              bestEnhancement: result.enhancement,
-              storeType: result.storeType,
-              metadata: result.metadata,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        _handleProcessingError(e);
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-      }
-    }
+    });
   }
 
   void _handleProcessingError(dynamic error) {
@@ -398,11 +415,7 @@ class _EnhancedPhotoPreviewScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
+            Icon(Icons.error_outline, size: 64, color: Colors.red),
             SizedBox(height: 16),
             Text(
               'Image Error',
@@ -416,10 +429,7 @@ class _EnhancedPhotoPreviewScreenState
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ],
         ),
@@ -432,11 +442,7 @@ class _EnhancedPhotoPreviewScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.broken_image,
-            size: 64,
-            color: Colors.white54,
-          ),
+          Icon(Icons.broken_image, size: 64, color: Colors.white54),
           SizedBox(height: 16),
           Text(
             'Unable to load image',
@@ -449,10 +455,7 @@ class _EnhancedPhotoPreviewScreenState
           SizedBox(height: 8),
           Text(
             'The image file may be corrupted',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
       ),
@@ -472,10 +475,7 @@ class _EnhancedPhotoPreviewScreenState
         children: [
           Text(
             'System Performance',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
           Row(
@@ -514,13 +514,7 @@ class _EnhancedPhotoPreviewScreenState
             fontSize: 16,
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
-        ),
+        Text(label, style: TextStyle(color: Colors.white70, fontSize: 12)),
       ],
     );
   }
@@ -539,10 +533,7 @@ class _EnhancedPhotoPreviewScreenState
           Icon(Icons.warning, color: Colors.red),
           SizedBox(width: 8),
           Expanded(
-            child: Text(
-              _errorMessage!,
-              style: TextStyle(color: Colors.red),
-            ),
+            child: Text(_errorMessage!, style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -577,8 +568,8 @@ class _EnhancedPhotoPreviewScreenState
             Expanded(
               flex: 2,
               child: ElevatedButton.icon(
-                onPressed: (_isProcessing || _errorMessage != null) 
-                    ? null 
+                onPressed: (_isProcessing || _errorMessage != null)
+                    ? null
                     : _processWithOptimization,
                 icon: _isProcessing
                     ? SizedBox(
@@ -591,14 +582,14 @@ class _EnhancedPhotoPreviewScreenState
                       )
                     : const Icon(Icons.auto_awesome),
                 label: Text(
-                  _isProcessing 
-                      ? (_retryAttempt > 0 ? 'Retrying...' : 'Processing...') 
+                  _isProcessing
+                      ? (_retryAttempt > 0 ? 'Retrying...' : 'Processing...')
                       : 'Process with AI',
                   style: const TextStyle(fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _errorMessage != null 
-                      ? Colors.grey 
+                  backgroundColor: _errorMessage != null
+                      ? Colors.grey
                       : const Color(0xFF1E3A8A),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),

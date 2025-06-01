@@ -37,6 +37,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   late Animation<double> _errorFadeAnimation;
   late Animation<double> _performanceScaleAnimation;
 
+  bool _isProcessingFrame = false;
+  int _frameSkipCount = 0;
+  static const int _skipFrames = 10; // Process every 10th frame
+  StreamSubscription<CameraImage>? _imageStreamSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -50,7 +55,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _currentCancellationToken?.cancel();
-    _disposeCamera();
+    _stopImageStream().then((_) {
+      _disposeCamera();
+    });
     _errorAnimationController.dispose();
     _performanceIndicatorController.dispose();
     super.dispose();
@@ -183,6 +190,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       await _cameraController!.initialize();
       await _cameraController!.setFlashMode(FlashMode.off);
 
+      await _startImageStream();
+
       if (mounted && !_isDisposed) {
         setState(() {
           _isCameraInitialized = true;
@@ -203,6 +212,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Future<void> _disposeCamera() async {
+    await _stopImageStream();
     if (_cameraController != null) {
       await CameraErrorHandler.safeDispose(_cameraController);
       _cameraController = null;
@@ -210,6 +220,44 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         setState(() {
           _isCameraInitialized = false;
         });
+      }
+    }
+  }
+
+  Future<void> _startImageStream() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
+    }
+
+    try {
+      await _cameraController!.startImageStream((CameraImage image) async {
+        if (_isProcessingFrame) return; // Skip if still processing
+
+        _frameSkipCount++;
+        if (_frameSkipCount % _skipFrames != 0) {
+          return; // Skip this frame
+        }
+
+        _isProcessingFrame = true;
+        try {
+          // Process the image here if needed
+          // For now, just release it immediately
+        } finally {
+          _isProcessingFrame = false;
+        }
+      });
+    } catch (e) {
+      debugPrint('Error starting image stream: $e');
+    }
+  }
+
+  Future<void> _stopImageStream() async {
+    if (_cameraController != null &&
+        _cameraController!.value.isStreamingImages) {
+      try {
+        await _cameraController!.stopImageStream();
+      } catch (e) {
+        debugPrint('Error stopping image stream: $e');
       }
     }
   }
