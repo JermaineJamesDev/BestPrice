@@ -1,25 +1,31 @@
 // lib/screens/enhanced_ocr_processing_screen.dart
 import 'package:flutter/material.dart';
-import '../services/advanced_ocr_processor.dart';
-import 'ocr_results_screen.dart';
+import '../services/performance_optimized_ocr_manager.dart';
+import '../services/unified_ocr_service.dart';
+import 'enhanced_ocr_results_screen.dart';
+import '../services/ocr_processor.dart';
 
 class EnhancedOCRProcessingScreen extends StatefulWidget {
   final String imagePath;
   final bool isLongReceipt;
-  final List<String>? sectionPaths; // For long receipts
+  final List<String>? sectionPaths;
+  // Add these optional parameters to match UnifiedOCRService results
+  final OCRResult? result;
 
   const EnhancedOCRProcessingScreen({
     super.key, 
     required this.imagePath,
     this.isLongReceipt = false,
     this.sectionPaths,
+    this.result, // Add this parameter
   });
 
   @override
   _EnhancedOCRProcessingScreenState createState() => _EnhancedOCRProcessingScreenState();
 }
 
-class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScreen>
+class _EnhancedOCRProcessingScreenState
+    extends State<EnhancedOCRProcessingScreen>
     with TickerProviderStateMixin {
   bool _isProcessing = true;
   String _currentStep = 'Initializing advanced OCR...';
@@ -55,7 +61,7 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
       duration: Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _pulseController = AnimationController(
       duration: Duration(milliseconds: 2000),
       vsync: this,
@@ -84,77 +90,76 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
 
   Future<void> _processSingleImage() async {
     await _updateProgress('Starting advanced OCR analysis...', 0.1);
-    
-    // Use the advanced OCR processor
-    final result = await AdvancedOCRProcessor.processReceiptImage(widget.imagePath);
-    
-    await _updateProgress('Extracting prices with AI...', 0.9);
-    
-    setState(() {
-      _extractedPrices = result.prices;
-      _fullText = result.fullText;
-      _bestEnhancement = result.enhancement;
-    });
 
-    await _updateProgress('Processing complete!', 1.0);
-    await Future.delayed(Duration(milliseconds: 500));
-    _navigateToResults();
+    try {
+      // Use UnifiedOCRService instead of OCRProcessor
+      final result = await UnifiedOCRService.processSingleReceipt(
+        widget.imagePath,
+        priority: ProcessingPriority.normal,
+      );
+
+      await _updateProgress('Extracting prices with AI...', 0.9);
+
+      setState(() {
+        _extractedPrices = result.prices;
+        _fullText = result.fullText;
+        _bestEnhancement = result.enhancement;
+      });
+
+      await _updateProgress('Processing complete!', 1.0);
+      await Future.delayed(Duration(milliseconds: 500));
+      _navigateToResults();
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Processing failed: ${e.toString()}';
+        _isProcessing = false;
+      });
+    }
   }
 
   Future<void> _processLongReceipt() async {
     if (widget.sectionPaths == null) return;
-    
-    await _updateProgress('Processing long receipt sections...', 0.1);
-    
-    final allPrices = <ExtractedPrice>[];
-    final allText = <String>[];
-    
-    for (int i = 0; i < widget.sectionPaths!.length; i++) {
-      setState(() {
-        _currentStep = 'Processing section ${i + 1} of ${widget.sectionPaths!.length}...';
-      });
-      
-      final progress = 0.1 + (0.7 * (i + 1) / widget.sectionPaths!.length);
-      await _updateProgress(_currentStep, progress);
-      
-      final result = await AdvancedOCRProcessor.processReceiptImage(widget.sectionPaths![i]);
-      
-      // Add section metadata to prices
-      final sectionPrices = result.prices.map((price) => ExtractedPrice(
-        itemName: price.itemName,
-        price: price.price,
-        originalText: price.originalText,
-        confidence: price.confidence,
-        position: price.position,
-        category: price.category,
-        unit: price.unit,
-      )).toList();
-      
-      allPrices.addAll(sectionPrices);
-      allText.add('--- Section ${i + 1} ---\n${result.fullText}');
-    }
-    
-    await _updateProgress('Merging and deduplicating results...', 0.9);
-    
-    // Merge and deduplicate
-    final mergedPrices = _mergeLongReceiptPrices(allPrices);
-    
-    setState(() {
-      _extractedPrices = mergedPrices;
-      _fullText = allText.join('\n\n');
-    });
 
-    await _updateProgress('Long receipt processing complete!', 1.0);
-    await Future.delayed(Duration(milliseconds: 500));
-    _navigateToResults();
+    await _updateProgress('Processing long receipt sections...', 0.1);
+
+    try {
+      setState(() {
+        _currentStep = 'Processing ${widget.sectionPaths!.length} sections...';
+      });
+
+      final progress = 0.1 + (0.7);
+      await _updateProgress(_currentStep, progress);
+
+      // Use UnifiedOCRService for long receipt processing
+      final result = await UnifiedOCRService.processLongReceipt(
+        widget.sectionPaths!,
+        priority: ProcessingPriority.normal,
+      );
+
+      await _updateProgress('Processing complete!', 1.0);
+
+      setState(() {
+        _extractedPrices = result.prices;
+        _fullText = result.fullText;
+        _bestEnhancement = result.enhancement;
+      });
+
+      await Future.delayed(Duration(milliseconds: 500));
+      _navigateToResults();
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Processing failed: ${e.toString()}';
+        _isProcessing = false;
+      });
+    }
   }
 
   List<ExtractedPrice> _mergeLongReceiptPrices(List<ExtractedPrice> allPrices) {
     final uniquePrices = <ExtractedPrice>[];
-    
+
     for (final price in allPrices) {
       bool isDuplicate = false;
-      
+
       for (final existing in uniquePrices) {
         if (_isProbableDuplicate(price, existing)) {
           // Keep the one with higher confidence
@@ -166,12 +171,12 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
           break;
         }
       }
-      
+
       if (!isDuplicate) {
         uniquePrices.add(price);
       }
     }
-    
+
     // Sort by confidence
     uniquePrices.sort((a, b) => b.confidence.compareTo(a.confidence));
     return uniquePrices;
@@ -193,12 +198,12 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
   double _calculateStringSimilarity(String str1, String str2) {
     if (str1 == str2) return 1.0;
     if (str1.isEmpty || str2.isEmpty) return 0.0;
-    
+
     final words1 = str1.split(' ').toSet();
     final words2 = str2.split(' ').toSet();
     final intersection = words1.intersection(words2);
     final union = words1.union(words2);
-    
+
     return intersection.length / union.length;
   }
 
@@ -216,7 +221,7 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => OCRResultsScreen(
+        builder: (context) => EnhancedOCRResultsScreen(
           imagePath: widget.imagePath,
           extractedPrices: _extractedPrices,
           fullText: _fullText,
@@ -233,12 +238,14 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: Text(widget.isLongReceipt ? 'Processing Long Receipt' : 'Processing Image'),
+        title: Text(
+          widget.isLongReceipt ? 'Processing Long Receipt' : 'Processing Image',
+        ),
         automaticallyImplyLeading: false,
       ),
-      body: _errorMessage != null 
-        ? _buildErrorState() 
-        : _buildProcessingState(),
+      body: _errorMessage != null
+          ? _buildErrorState()
+          : _buildProcessingState(),
     );
   }
 
@@ -260,10 +267,7 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
                     height: 140,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Color(0xFF1E3A8A),
-                        width: 3,
-                      ),
+                      border: Border.all(color: Color(0xFF1E3A8A), width: 3),
                       gradient: RadialGradient(
                         colors: [
                           Color(0xFF1E3A8A).withOpacity(0.2),
@@ -272,7 +276,9 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
                       ),
                     ),
                     child: Icon(
-                      widget.isLongReceipt ? Icons.receipt_long : Icons.document_scanner,
+                      widget.isLongReceipt
+                          ? Icons.receipt_long
+                          : Icons.document_scanner,
                       size: 70,
                       color: Color(0xFF1E3A8A),
                     ),
@@ -280,9 +286,9 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
                 );
               },
             ),
-            
+
             SizedBox(height: 40),
-            
+
             // Current step
             Text(
               _currentStep,
@@ -293,9 +299,9 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             SizedBox(height: 32),
-            
+
             // Progress bar
             Container(
               width: double.infinity,
@@ -317,9 +323,9 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
                 ),
               ),
             ),
-            
+
             SizedBox(height: 16),
-            
+
             // Progress percentage
             Text(
               '${(_progress * 100).toInt()}%',
@@ -329,14 +335,14 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
                 fontWeight: FontWeight.bold,
               ),
             ),
-            
+
             SizedBox(height: 48),
-            
+
             // Enhancement techniques info
             _buildEnhancementInfo(),
-            
+
             SizedBox(height: 32),
-            
+
             // Processing tips
             _buildProcessingTips(),
           ],
@@ -358,11 +364,7 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
         children: [
           Row(
             children: [
-              Icon(
-                Icons.auto_fix_high,
-                color: Colors.amber,
-                size: 24,
-              ),
+              Icon(Icons.auto_fix_high, color: Colors.amber, size: 24),
               SizedBox(width: 12),
               Text(
                 'Advanced OCR Processing',
@@ -379,7 +381,7 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
             int index = EnhancementType.values.indexOf(type);
             bool isActive = index <= _currentEnhancement;
             bool isCurrent = index == _currentEnhancement;
-            
+
             return Padding(
               padding: EdgeInsets.symmetric(vertical: 4),
               child: Row(
@@ -391,11 +393,9 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
                       color: isActive ? Color(0xFF1E3A8A) : Colors.grey[700],
                       shape: BoxShape.circle,
                     ),
-                    child: isActive ? Icon(
-                      Icons.check,
-                      size: 12,
-                      color: Colors.white,
-                    ) : null,
+                    child: isActive
+                        ? Icon(Icons.check, size: 12, color: Colors.white)
+                        : null,
                   ),
                   SizedBox(width: 12),
                   Expanded(
@@ -404,7 +404,9 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
                       style: TextStyle(
                         color: isCurrent ? Colors.white : Colors.grey[400],
                         fontSize: 14,
-                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isCurrent
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -426,9 +428,9 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
       'Validating results with confidence scoring',
       'Finalizing extraction results',
     ];
-    
+
     int tipIndex = (_progress * (tips.length - 1)).round();
-    
+
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -438,19 +440,12 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.tips_and_updates,
-            color: Colors.blue[300],
-            size: 24,
-          ),
+          Icon(Icons.tips_and_updates, color: Colors.blue[300], size: 24),
           SizedBox(width: 12),
           Expanded(
             child: Text(
               tips[tipIndex],
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ),
         ],
@@ -465,11 +460,7 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Colors.red,
-            ),
+            Icon(Icons.error_outline, size: 80, color: Colors.red),
             SizedBox(height: 24),
             Text(
               'Processing Failed',
@@ -483,10 +474,7 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
             SizedBox(height: 32),
             Row(
@@ -542,6 +530,8 @@ class _EnhancedOCRProcessingScreenState extends State<EnhancedOCRProcessingScree
         return 'Grayscale conversion';
       case EnhancementType.binarize:
         return 'Binary threshold processing';
+      case EnhancementType.hybrid:
+        return 'Hybrid adjustment';
     }
   }
 }

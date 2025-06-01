@@ -1,26 +1,26 @@
-// lib/screens/long_receipt_capture_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
+import '../services/ocr_processor.dart';
+import '../services/performance_optimized_ocr_manager.dart';
+import '../services/unified_ocr_service.dart';
 import '../utils/camera_error_handler.dart';
-import '../services/advanced_ocr_processor.dart';
+import 'long_receipt_results_screen.dart'; // NEW: Separate file
 
 class LongReceiptCaptureScreen extends StatefulWidget {
   const LongReceiptCaptureScreen({super.key});
 
   @override
-  _LongReceiptCaptureScreenState createState() => _LongReceiptCaptureScreenState();
+  _LongReceiptCaptureScreenState createState() =>
+      _LongReceiptCaptureScreenState();
 }
 
 class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
     with WidgetsBindingObserver {
   CameraController? _cameraController;
-  final List<CameraDescription> _cameras = [];
+  List<CameraDescription> _cameras = [];
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
-  
-  // Multi-section capture state
   final List<ReceiptSection> _capturedSections = [];
   int _currentSection = 1;
   bool _isProcessing = false;
@@ -42,32 +42,43 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isNotEmpty) {
-      _cameraController = CameraErrorHandler.createOptimizedController(cameras[0]);
-      await _cameraController!.initialize();
-      if (mounted) {
-        setState(() {
-          _isCameraInitialized = true;
-        });
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isNotEmpty && mounted) {
+        _cameras = cameras;
+        _cameraController = CameraErrorHandler.createOptimizedController(
+          cameras[0],
+        );
+        await _cameraController!.initialize();
+        if (mounted) {
+          setState(() {
+            _isCameraInitialized = true;
+          });
+        }
       }
+    } catch (e) {
+      debugPrint('Camera initialization failed: $e');
     }
   }
 
   void _updateGuideText() {
     setState(() {
       if (_currentSection == 1) {
-        _guideText = "Capture the TOP section of your receipt\nMake sure all text is clearly visible";
+        _guideText =
+            "Capture the TOP section of your receipt\nMake sure all text is clearly visible";
       } else if (_capturedSections.length < 5) {
-        _guideText = "Capture section $_currentSection\nInclude some overlap with the previous section";
+        _guideText =
+            "Capture section $_currentSection\nInclude some overlap with the previous section";
       } else {
-        _guideText = "Capture the BOTTOM section\nInclude the total and any remaining items";
+        _guideText =
+            "Capture the BOTTOM section\nInclude the total and any remaining items";
       }
     });
   }
 
   Future<void> _captureSection() async {
-    if (!_isCameraInitialized || _isCapturing || _cameraController == null) return;
+    if (!_isCameraInitialized || _isCapturing || _cameraController == null)
+      return;
 
     setState(() {
       _isCapturing = true;
@@ -75,7 +86,6 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
 
     try {
       final image = await _cameraController!.takePicture();
-      
       final section = ReceiptSection(
         imagePath: image.path,
         sectionNumber: _currentSection,
@@ -90,14 +100,13 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
 
       _updateGuideText();
       _showSectionCapturedDialog(section);
-
     } catch (e) {
       setState(() {
         _isCapturing = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to capture: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to capture: $e')));
     }
   }
 
@@ -118,10 +127,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(section.imagePath),
-                  fit: BoxFit.cover,
-                ),
+                child: Image.file(File(section.imagePath), fit: BoxFit.cover),
               ),
             ),
             const SizedBox(height: 16),
@@ -156,7 +162,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
   void _removeLastSection() {
     if (_capturedSections.isNotEmpty) {
       final removed = _capturedSections.removeLast();
-      File(removed.imagePath).delete(); // Clean up file
+      File(removed.imagePath).delete();
       setState(() {
         _currentSection--;
       });
@@ -170,49 +176,38 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
     });
 
     try {
-      // Show processing dialog
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => _buildProcessingDialog(),
       );
 
-      // Process each section
-      final allPrices = <ExtractedPrice>[];
-      final allText = <String>[];
+      // Extract section paths from captured sections
+      final sectionPaths = _capturedSections
+          .map((section) => section.imagePath)
+          .toList();
 
-      for (int i = 0; i < _capturedSections.length; i++) {
-        final section = _capturedSections[i];
-        
-        // Update processing status
-        setState(() {
-          _currentProcessingSection = i + 1;
-        });
+      setState(() {
+        _currentProcessingSection = _capturedSections.length;
+      });
 
-        final result = await AdvancedOCRProcessor.processReceiptImage(section.imagePath);
-        
-        // Add section identifier to prices
-        final sectionPrices = result.prices.map((price) => ExtractedPrice(
-          itemName: price.itemName,
-          price: price.price,
-          originalText: price.originalText,
-          confidence: price.confidence,
-          position: price.position,
-          category: price.category,
-          unit: price.unit,
-        )).toList();
+      // Use UnifiedOCRService to process all sections at once
+      final result = await UnifiedOCRService.processLongReceipt(
+        sectionPaths,
+        priority: ProcessingPriority.normal,
+      );
 
-        allPrices.addAll(sectionPrices);
-        allText.add('--- Section ${section.sectionNumber} ---\n${result.fullText}');
-      }
-
-      // Merge and deduplicate results
-      final mergedResult = _mergeReceiptSections(allPrices, allText.join('\n\n'));
+      // Create merged result from UnifiedOCRService result
+      final mergedResult = MergedReceiptResult(
+        prices: result.prices,
+        fullText: result.fullText,
+        totalSections: _capturedSections.length,
+        confidence: result.confidence,
+      );
 
       Navigator.of(context).pop(); // Close processing dialog
-      
-      // Navigate to results
-      Navigator.push(
+
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => LongReceiptResultsScreen(
@@ -221,12 +216,11 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
           ),
         ),
       );
-
     } catch (e) {
       Navigator.of(context).pop(); // Close processing dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Processing failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Processing failed: $e')));
     } finally {
       setState(() {
         _isProcessing = false;
@@ -238,20 +232,18 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
 
   Widget _buildProcessingDialog() {
     return AlertDialog(
-      title: const Text('Processing Receipt'),
+      title: const Text('Processing Long Receipt'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          Text('Processing section $_currentProcessingSection of ${_capturedSections.length}'),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: _currentProcessingSection / _capturedSections.length,
+          Text(
+            'Processing ${_capturedSections.length} sections with advanced OCR...',
           ),
           const SizedBox(height: 16),
           const Text(
-            'This may take a few moments...',
+            'Using optimized processing with automatic section merging and deduplication.',
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
         ],
@@ -259,37 +251,36 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
     );
   }
 
-  MergedReceiptResult _mergeReceiptSections(List<ExtractedPrice> allPrices, String fullText) {
-    // Remove duplicates that appear across sections
+  MergedReceiptResult _mergeReceiptSections(
+    List<ExtractedPrice> allPrices,
+    String fullText,
+  ) {
+    // Enhanced deduplication with semantic similarity
     final uniquePrices = <ExtractedPrice>[];
-    
+
     for (final price in allPrices) {
       bool isDuplicate = false;
-      
-      for (final existing in uniquePrices) {
-        // Check for duplicates with tolerance for OCR variations
-        if (_isProbableDuplicate(price, existing)) {
+
+      for (int i = 0; i < uniquePrices.length; i++) {
+        final existing = uniquePrices[i];
+
+        if (_areSemanticallySimilar(price, existing)) {
           // Keep the one with higher confidence
           if (price.confidence > existing.confidence) {
-            uniquePrices.remove(existing);
-            uniquePrices.add(price);
+            uniquePrices[i] = price;
           }
           isDuplicate = true;
           break;
         }
       }
-      
+
       if (!isDuplicate) {
         uniquePrices.add(price);
       }
     }
 
-    // Sort by section number and position
-    uniquePrices.sort((a, b) {
-      final sectionCompare = (a.sectionNumber ?? 0).compareTo(b.sectionNumber ?? 0);
-      if (sectionCompare != 0) return sectionCompare;
-      return a.position.top.compareTo(b.position.top);
-    });
+    // Sort by position to maintain receipt order
+    uniquePrices.sort((a, b) => a.position.top.compareTo(b.position.top));
 
     return MergedReceiptResult(
       prices: uniquePrices,
@@ -299,40 +290,49 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
     );
   }
 
-  bool _isProbableDuplicate(ExtractedPrice price1, ExtractedPrice price2) {
-    // Same price and similar item name
+  bool _areSemanticallySimilar(ExtractedPrice price1, ExtractedPrice price2) {
+    // Same price within 1 cent
     if ((price1.price - price2.price).abs() < 0.01) {
-      final similarity = _calculateStringSimilarity(
-        price1.itemName.toLowerCase(),
-        price2.itemName.toLowerCase(),
-      );
-      return similarity > 0.7;
+      return true;
     }
+
+    // Very similar item names with small price difference
+    final similarity = _calculateStringSimilarity(
+      price1.itemName.toLowerCase(),
+      price2.itemName.toLowerCase(),
+    );
+
+    if (similarity > 0.85) {
+      final priceDiff =
+          (price1.price - price2.price).abs() /
+          ((price1.price + price2.price) / 2);
+      return priceDiff < 0.1; // 10% difference threshold
+    }
+
     return false;
   }
 
   double _calculateStringSimilarity(String str1, String str2) {
     if (str1 == str2) return 1.0;
     if (str1.isEmpty || str2.isEmpty) return 0.0;
-    
+
     final words1 = str1.split(' ').toSet();
     final words2 = str2.split(' ').toSet();
     final intersection = words1.intersection(words2);
     final union = words1.union(words2);
-    
+
     return intersection.length / union.length;
   }
 
   double _calculateMergedConfidence(List<ExtractedPrice> prices) {
     if (prices.isEmpty) return 0.0;
-    
-    final avgConfidence = prices
-        .map((p) => p.confidence)
-        .reduce((a, b) => a + b) / prices.length;
-    
-    // Boost confidence if we have multiple sections (more comprehensive)
+
+    final avgConfidence =
+        prices.map((p) => p.confidence).reduce((a, b) => a + b) / prices.length;
+
+    // Bonus for multiple sections
     final sectionBonus = (_capturedSections.length - 1) * 0.05;
-    
+
     return (avgConfidence + sectionBonus).clamp(0.0, 1.0);
   }
 
@@ -347,7 +347,9 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
         actions: [
           if (_capturedSections.isNotEmpty)
             TextButton(
-              onPressed: _capturedSections.length >= 2 ? _processAllSections : null,
+              onPressed: _capturedSections.length >= 2
+                  ? _processAllSections
+                  : null,
               child: Text(
                 'Process (${_capturedSections.length})',
                 style: const TextStyle(color: Colors.white),
@@ -360,26 +362,15 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
   }
 
   Widget _buildLoadingView() {
-    return const Center(
-      child: CircularProgressIndicator(color: Colors.white),
-    );
+    return const Center(child: CircularProgressIndicator(color: Colors.white));
   }
 
   Widget _buildCameraView() {
     return Stack(
       children: [
-        // Camera preview
-        Positioned.fill(
-          child: CameraPreview(_cameraController!),
-        ),
-        
-        // Overlay with guide
+        Positioned.fill(child: CameraPreview(_cameraController!)),
         _buildCameraOverlay(),
-        
-        // Captured sections indicator
         _buildSectionsIndicator(),
-        
-        // Camera controls
         _buildCameraControls(),
       ],
     );
@@ -389,7 +380,6 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
     return Positioned.fill(
       child: Column(
         children: [
-          // Top guidance
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -397,10 +387,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.8),
-                  Colors.transparent,
-                ],
+                colors: [Colors.black.withOpacity(0.8), Colors.transparent],
               ),
             ),
             child: SafeArea(
@@ -429,15 +416,11 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
               ),
             ),
           ),
-          
           const Spacer(),
-          
-          // Capture frame overlay
           CustomPaint(
             size: Size(MediaQuery.of(context).size.width, 300),
             painter: ReceiptFramePainter(),
           ),
-          
           const Spacer(),
         ],
       ),
@@ -446,7 +429,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
 
   Widget _buildSectionsIndicator() {
     if (_capturedSections.isEmpty) return const SizedBox.shrink();
-    
+
     return Positioned(
       top: 100,
       right: 16,
@@ -496,25 +479,24 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.black,
-          border: Border(
-            top: BorderSide(color: Colors.grey[800]!, width: 1),
-          ),
+          border: Border(top: BorderSide(color: Colors.grey[800]!, width: 1)),
         ),
         child: SafeArea(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Remove last section
               IconButton(
-                onPressed: _capturedSections.isNotEmpty ? _removeLastSection : null,
+                onPressed: _capturedSections.isNotEmpty
+                    ? _removeLastSection
+                    : null,
                 icon: Icon(
                   Icons.undo,
-                  color: _capturedSections.isNotEmpty ? Colors.white : Colors.grey,
+                  color: _capturedSections.isNotEmpty
+                      ? Colors.white
+                      : Colors.grey,
                   size: 32,
                 ),
               ),
-              
-              // Capture button
               GestureDetector(
                 onTap: _isCapturing ? null : _captureSection,
                 child: Container(
@@ -533,13 +515,15 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
                   ),
                 ),
               ),
-              
-              // Process button
               IconButton(
-                onPressed: _capturedSections.length >= 2 ? _processAllSections : null,
+                onPressed: _capturedSections.length >= 2
+                    ? _processAllSections
+                    : null,
                 icon: Icon(
                   Icons.check,
-                  color: _capturedSections.length >= 2 ? Colors.green : Colors.grey,
+                  color: _capturedSections.length >= 2
+                      ? Colors.green
+                      : Colors.grey,
                   size: 32,
                 ),
               ),
@@ -551,7 +535,6 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
   }
 }
 
-// Custom painter for receipt frame
 class ReceiptFramePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -560,17 +543,15 @@ class ReceiptFramePainter extends CustomPainter {
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
-    // Draw receipt-like frame
     final rect = Rect.fromCenter(
       center: Offset(size.width / 2, size.height / 2),
       width: size.width * 0.8,
       height: size.height * 0.9,
     );
 
-    // Draw corners
     const cornerLength = 30.0;
-    
-    // Top left
+
+    // Draw corner brackets
     canvas.drawLine(
       Offset(rect.left, rect.top + cornerLength),
       Offset(rect.left, rect.top),
@@ -581,8 +562,7 @@ class ReceiptFramePainter extends CustomPainter {
       Offset(rect.left + cornerLength, rect.top),
       paint,
     );
-    
-    // Top right
+
     canvas.drawLine(
       Offset(rect.right - cornerLength, rect.top),
       Offset(rect.right, rect.top),
@@ -593,8 +573,7 @@ class ReceiptFramePainter extends CustomPainter {
       Offset(rect.right, rect.top + cornerLength),
       paint,
     );
-    
-    // Bottom left
+
     canvas.drawLine(
       Offset(rect.left, rect.bottom - cornerLength),
       Offset(rect.left, rect.bottom),
@@ -605,8 +584,7 @@ class ReceiptFramePainter extends CustomPainter {
       Offset(rect.left + cornerLength, rect.bottom),
       paint,
     );
-    
-    // Bottom right
+
     canvas.drawLine(
       Offset(rect.right - cornerLength, rect.bottom),
       Offset(rect.right, rect.bottom),
@@ -621,117 +599,4 @@ class ReceiptFramePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
-
-// Data classes
-class ReceiptSection {
-  final String imagePath;
-  final int sectionNumber;
-  final DateTime timestamp;
-
-  ReceiptSection({
-    required this.imagePath,
-    required this.sectionNumber,
-    required this.timestamp,
-  });
-}
-
-class MergedReceiptResult {
-  final List<ExtractedPrice> prices;
-  final String fullText;
-  final int totalSections;
-  final double confidence;
-
-  MergedReceiptResult({
-    required this.prices,
-    required this.fullText,
-    required this.totalSections,
-    required this.confidence,
-  });
-}
-
-// Extended ExtractedPrice to include section info
-extension ExtractedPriceExtension on ExtractedPrice {
-  int? get sectionNumber => null; // This would be properly implemented
-}
-
-// Results screen for long receipts
-class LongReceiptResultsScreen extends StatelessWidget {
-  final List<ReceiptSection> sections;
-  final MergedReceiptResult mergedResult;
-
-  const LongReceiptResultsScreen({
-    super.key,
-    required this.sections,
-    required this.mergedResult,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Long Receipt Results'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Summary card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Receipt Summary',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Sections processed: ${mergedResult.totalSections}'),
-                    Text('Items found: ${mergedResult.prices.length}'),
-                    Text('Overall confidence: ${(mergedResult.confidence * 100).toStringAsFixed(1)}%'),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Extracted prices
-            Text(
-              'Extracted Prices',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            
-            ...mergedResult.prices.map((price) => Card(
-              child: ListTile(
-                title: Text(price.itemName),
-                subtitle: Text('${price.category} • Confidence: ${(price.confidence * 100).toStringAsFixed(1)}%'),
-                trailing: Text(
-                  'J\$${price.price.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            )),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        child: ElevatedButton(
-          onPressed: () {
-            // Process the results (save, submit, etc.)
-            Navigator.popUntil(context, (route) => route.isFirst);
-          },
-          child: const Text('Submit All Prices'),
-        ),
-      ),
-    );
-  }
 }

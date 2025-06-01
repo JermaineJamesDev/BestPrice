@@ -1,6 +1,6 @@
 // lib/screens/enhanced_ocr_results_screen.dart
 import 'package:flutter/material.dart';
-import '../services/advanced_ocr_processor.dart';
+import '../services/ocr_processor.dart';
 
 class EnhancedOCRResultsScreen extends StatefulWidget {
   final String imagePath;
@@ -23,7 +23,8 @@ class EnhancedOCRResultsScreen extends StatefulWidget {
   });
 
   @override
-  _EnhancedOCRResultsScreenState createState() => _EnhancedOCRResultsScreenState();
+  _EnhancedOCRResultsScreenState createState() =>
+      _EnhancedOCRResultsScreenState();
 }
 
 class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
@@ -34,19 +35,38 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
   String? _selectedParish;
   bool _showProcessingDetails = false;
   bool _showConfidenceDetails = false;
-  
+
   late AnimationController _fadeController;
   late AnimationController _slideController;
 
   final List<String> _stores = [
-    'Hi-Lo', 'MegaMart', 'SuperPlus', 'PriceSmart', 'Shoppers Fair',
-    'Progressive', 'Loshusan', 'Fontana', 'General Food', 'Other'
+    'Hi-Lo',
+    'MegaMart',
+    'SuperPlus',
+    'PriceSmart',
+    'Shoppers Fair',
+    'Progressive',
+    'Loshusan',
+    'Fontana',
+    'General Food',
+    'Other',
   ];
 
   final List<String> _parishes = [
-    'Kingston', 'St. Andrew', 'St. Thomas', 'Portland', 'St. Mary',
-    'St. Ann', 'Trelawny', 'St. James', 'Hanover', 'Westmoreland',
-    'St. Elizabeth', 'Manchester', 'Clarendon', 'St. Catherine',
+    'Kingston',
+    'St. Andrew',
+    'St. Thomas',
+    'Portland',
+    'St. Mary',
+    'St. Ann',
+    'Trelawny',
+    'St. James',
+    'Hanover',
+    'Westmoreland',
+    'St. Elizabeth',
+    'Manchester',
+    'Clarendon',
+    'St. Catherine',
   ];
 
   @override
@@ -54,10 +74,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
     super.initState();
     _editablePrices = List.from(widget.extractedPrices);
     _selectedParish = 'Kingston';
-    
-    // Auto-detect store if possible
     _selectedStore = _detectStoreFromType(widget.storeType);
-    
     _setupAnimations();
   }
 
@@ -73,25 +90,35 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
       duration: Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _slideController = AnimationController(
       duration: Duration(milliseconds: 600),
       vsync: this,
     );
-    
+
     _fadeController.forward();
   }
 
   String? _detectStoreFromType(String? storeType) {
     if (storeType == null) return null;
-    
+
+    // Handle the store type detection from UnifiedOCRService results
     switch (storeType.toLowerCase()) {
       case 'hi-lo':
+      case 'hilo':
         return 'Hi-Lo';
       case 'megamart':
+      case 'mega_mart':
         return 'MegaMart';
       case 'pricesmart':
+      case 'price_smart':
         return 'PriceSmart';
+      case 'superplus':
+      case 'super_plus':
+        return 'SuperPlus';
+      case 'generic_supermarket':
+      case 'generic':
+        return null; // Let user select manually
       default:
         return null;
     }
@@ -102,13 +129,17 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(widget.isLongReceipt ? 'Long Receipt Results' : 'OCR Results'),
+        title: Text(
+          widget.isLongReceipt ? 'Long Receipt Results' : 'OCR Results',
+        ),
         backgroundColor: Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            onPressed: () => setState(() => _showProcessingDetails = !_showProcessingDetails),
+            onPressed: () => setState(
+              () => _showProcessingDetails = !_showProcessingDetails,
+            ),
             icon: Icon(Icons.analytics),
             tooltip: 'Processing Details',
           ),
@@ -126,9 +157,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
             if (_showProcessingDetails) _buildProcessingDetails(),
             _buildStoreSelection(),
             _buildResultsSummary(),
-            Expanded(
-              child: _buildPricesList(),
-            ),
+            Expanded(child: _buildPricesList()),
           ],
         ),
       ),
@@ -287,9 +316,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!, width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[300]!, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,8 +368,13 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                   value: _selectedStore,
                   decoration: InputDecoration(
                     labelText: 'Store Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     prefixIcon: Icon(Icons.store),
                   ),
                   items: _stores.map((store) {
@@ -361,8 +393,13 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                   value: _selectedParish,
                   decoration: InputDecoration(
                     labelText: 'Parish',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     prefixIcon: Icon(Icons.location_on),
                   ),
                   items: _parishes.map((parish) {
@@ -384,16 +421,15 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
 
   Widget _buildResultsSummary() {
     final avgConfidence = _editablePrices.isNotEmpty
-        ? _editablePrices.map((p) => p.confidence).reduce((a, b) => a + b) / _editablePrices.length
+        ? _editablePrices.map((p) => p.confidence).reduce((a, b) => a + b) /
+              _editablePrices.length
         : 0.0;
 
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _editablePrices.isEmpty ? Colors.red[50] : Colors.green[50],
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!, width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[300]!, width: 1)),
       ),
       child: Column(
         children: [
@@ -410,13 +446,15 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _editablePrices.isEmpty 
-                        ? 'No prices detected'
-                        : '${_editablePrices.length} price${_editablePrices.length == 1 ? '' : 's'} extracted',
+                      _editablePrices.isEmpty
+                          ? 'No prices detected'
+                          : '${_editablePrices.length} price${_editablePrices.length == 1 ? '' : 's'} extracted',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
-                        color: _editablePrices.isEmpty ? Colors.red[700] : Colors.green[700],
+                        color: _editablePrices.isEmpty
+                            ? Colors.red[700]
+                            : Colors.green[700],
                       ),
                     ),
                     if (_editablePrices.isNotEmpty) ...[
@@ -440,7 +478,9 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
               Column(
                 children: [
                   TextButton.icon(
-                    onPressed: () => setState(() => _showConfidenceDetails = !_showConfidenceDetails),
+                    onPressed: () => setState(
+                      () => _showConfidenceDetails = !_showConfidenceDetails,
+                    ),
                     icon: Icon(Icons.analytics, size: 16),
                     label: Text('Details'),
                   ),
@@ -463,9 +503,15 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
   }
 
   Widget _buildConfidenceBreakdown() {
-    final highConfidence = _editablePrices.where((p) => p.confidence >= 0.8).length;
-    final mediumConfidence = _editablePrices.where((p) => p.confidence >= 0.6 && p.confidence < 0.8).length;
-    final lowConfidence = _editablePrices.where((p) => p.confidence < 0.6).length;
+    final highConfidence = _editablePrices
+        .where((p) => p.confidence >= 0.8)
+        .length;
+    final mediumConfidence = _editablePrices
+        .where((p) => p.confidence >= 0.6 && p.confidence < 0.8)
+        .length;
+    final lowConfidence = _editablePrices
+        .where((p) => p.confidence < 0.6)
+        .length;
 
     return Container(
       padding: EdgeInsets.all(12),
@@ -479,24 +525,33 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
         children: [
           Text(
             'Confidence Distribution',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: _buildConfidenceBar('High (80%+)', highConfidence, Colors.green),
+                child: _buildConfidenceBar(
+                  'High (80%+)',
+                  highConfidence,
+                  Colors.green,
+                ),
               ),
               SizedBox(width: 8),
               Expanded(
-                child: _buildConfidenceBar('Medium (60-80%)', mediumConfidence, Colors.orange),
+                child: _buildConfidenceBar(
+                  'Medium (60-80%)',
+                  mediumConfidence,
+                  Colors.orange,
+                ),
               ),
               SizedBox(width: 8),
               Expanded(
-                child: _buildConfidenceBar('Low (<60%)', lowConfidence, Colors.red),
+                child: _buildConfidenceBar(
+                  'Low (<60%)',
+                  lowConfidence,
+                  Colors.red,
+                ),
               ),
             ],
           ),
@@ -529,10 +584,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
         SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           textAlign: TextAlign.center,
         ),
       ],
@@ -558,24 +610,17 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.receipt_long,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.receipt_long, size: 80, color: Colors.grey[400]),
           SizedBox(height: 16),
           Text(
             'No prices detected',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           SizedBox(height: 8),
           Text(
-            widget.isLongReceipt 
-              ? 'The receipt sections might not contain clear price information.\nTry capturing with better lighting or add prices manually.'
-              : 'The image might not contain clear price information.\nYou can add prices manually.',
+            widget.isLongReceipt
+                ? 'The receipt sections might not contain clear price information.\nTry capturing with better lighting or add prices manually.'
+                : 'The image might not contain clear price information.\nYou can add prices manually.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey[500]),
           ),
@@ -584,9 +629,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
             onPressed: _addManualPrice,
             icon: Icon(Icons.add),
             label: Text('Add Price Manually'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF1E3A8A),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF1E3A8A)),
           ),
         ],
       ),
@@ -595,7 +638,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
 
   Widget _buildEnhancedPriceCard(int index) {
     ExtractedPrice price = _editablePrices[index];
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       child: Card(
@@ -627,7 +670,9 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          price.itemName.isEmpty ? 'Item ${index + 1}' : price.itemName,
+                          price.itemName.isEmpty
+                              ? 'Item ${index + 1}'
+                              : price.itemName,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -635,9 +680,14 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                         ),
                         SizedBox(height: 4),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: _getCategoryColor(price.category).withOpacity(0.1),
+                            color: _getCategoryColor(
+                              price.category,
+                            ).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -655,9 +705,9 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                   _buildEnhancedConfidenceBadge(price.confidence),
                 ],
               ),
-              
+
               SizedBox(height: 12),
-              
+
               Row(
                 children: [
                   Text(
@@ -678,10 +728,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                       ),
                       child: Text(
                         price.unit,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[700],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                       ),
                     ),
                   ],
@@ -689,9 +736,9 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                   _buildPriceActions(index),
                 ],
               ),
-              
+
               SizedBox(height: 12),
-              
+
               Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -703,7 +750,11 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.format_quote, size: 16, color: Colors.grey[600]),
+                        Icon(
+                          Icons.format_quote,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Original Text:',
@@ -738,7 +789,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
     Color color;
     String text;
     IconData icon;
-    
+
     if (confidence >= 0.9) {
       color = Colors.green;
       text = 'Excellent';
@@ -756,7 +807,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
       text = 'Low';
       icon = Icons.error;
     }
-    
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -781,10 +832,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
               ),
               Text(
                 '${(confidence * 100).toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: color,
-                ),
+                style: TextStyle(fontSize: 10, color: color),
               ),
             ],
           ),
@@ -875,7 +923,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
     setState(() {
       _editablePrices.removeAt(index);
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Price removed'),
@@ -899,7 +947,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
       category: 'Other',
       unit: 'each',
     );
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -912,10 +960,26 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
     final priceController = TextEditingController(text: price.price.toString());
     String selectedCategory = price.category;
     String selectedUnit = price.unit;
-    
-    final categories = ['Groceries', 'Meat', 'Beverages', 'Dairy', 'Produce', 'Household', 'Health', 'Other'];
-    final units = ['each', 'per lb', 'per kg', 'per gallon', 'per liter', 'per pack'];
-    
+
+    final categories = [
+      'Groceries',
+      'Meat',
+      'Beverages',
+      'Dairy',
+      'Produce',
+      'Household',
+      'Health',
+      'Other',
+    ];
+    final units = [
+      'each',
+      'per lb',
+      'per kg',
+      'per gallon',
+      'per liter',
+      'per pack',
+    ];
+
     return StatefulBuilder(
       builder: (context, setModalState) {
         return Padding(
@@ -945,29 +1009,33 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                   ],
                 ),
                 SizedBox(height: 20),
-                
+
                 TextFormField(
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Item Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     prefixIcon: Icon(Icons.shopping_basket),
                   ),
                 ),
                 SizedBox(height: 16),
-                
+
                 TextFormField(
                   controller: priceController,
                   decoration: InputDecoration(
                     labelText: 'Price (JMD)',
                     prefixText: 'J\$',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     prefixIcon: Icon(Icons.attach_money),
                   ),
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                 ),
                 SizedBox(height: 16),
-                
+
                 Row(
                   children: [
                     Expanded(
@@ -975,15 +1043,21 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                         value: selectedCategory,
                         decoration: InputDecoration(
                           labelText: 'Category',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           prefixIcon: Icon(Icons.category),
                         ),
                         items: categories.map((cat) {
                           return DropdownMenuItem(
-                            value: cat, 
+                            value: cat,
                             child: Row(
                               children: [
-                                Icon(_getCategoryIcon(cat), size: 16, color: _getCategoryColor(cat)),
+                                Icon(
+                                  _getCategoryIcon(cat),
+                                  size: 16,
+                                  color: _getCategoryColor(cat),
+                                ),
                                 SizedBox(width: 8),
                                 Text(cat),
                               ],
@@ -1003,11 +1077,16 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                         value: selectedUnit,
                         decoration: InputDecoration(
                           labelText: 'Unit',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           prefixIcon: Icon(Icons.straighten),
                         ),
                         items: units.map((unit) {
-                          return DropdownMenuItem(value: unit, child: Text(unit));
+                          return DropdownMenuItem(
+                            value: unit,
+                            child: Text(unit),
+                          );
                         }).toList(),
                         onChanged: (value) {
                           setModalState(() {
@@ -1018,9 +1097,9 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                     ),
                   ],
                 ),
-                
+
                 SizedBox(height: 24),
-                
+
                 Row(
                   children: [
                     Expanded(
@@ -1033,18 +1112,19 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          if (nameController.text.isNotEmpty && 
+                          if (nameController.text.isNotEmpty &&
                               priceController.text.isNotEmpty) {
                             ExtractedPrice updatedPrice = ExtractedPrice(
                               itemName: nameController.text,
-                              price: double.tryParse(priceController.text) ?? 0.0,
+                              price:
+                                  double.tryParse(priceController.text) ?? 0.0,
                               originalText: price.originalText,
                               confidence: index == -1 ? 1.0 : price.confidence,
                               position: price.position,
                               category: selectedCategory,
                               unit: selectedUnit,
                             );
-                            
+
                             setState(() {
                               if (index == -1) {
                                 _editablePrices.add(updatedPrice);
@@ -1052,7 +1132,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                                 _editablePrices[index] = updatedPrice;
                               }
                             });
-                            
+
                             Navigator.pop(context);
                           }
                         },
@@ -1105,27 +1185,27 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
 
   Future<void> _submitPrices() async {
     if (_editablePrices.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No prices to submit')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No prices to submit')));
       return;
     }
-    
+
     if (_selectedStore == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select a store')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please select a store')));
       return;
     }
-    
+
     setState(() {
       _isSubmitting = true;
     });
-    
+
     try {
       // Simulate API call
       await Future.delayed(Duration(seconds: 2));
-      
+
       _showSuccessDialog();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1205,9 +1285,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey[300]!, width: 1),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -1219,7 +1297,8 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
       ),
       child: SafeArea(
         child: ElevatedButton(
-          onPressed: _isSubmitting || _editablePrices.isEmpty || _selectedStore == null
+          onPressed:
+              _isSubmitting || _editablePrices.isEmpty || _selectedStore == null
               ? null
               : _submitPrices,
           style: ElevatedButton.styleFrom(

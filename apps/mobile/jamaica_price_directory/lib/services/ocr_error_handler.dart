@@ -1,665 +1,728 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import 'dart:io';
+import 'dart:async';
 
-class OCRErrorHandler {
-  static const Map<String, String> _errorMessages = {
-    'camera_permission_denied': 'Camera permission is required to scan receipts. Please grant access in settings.',
-    'camera_not_available': 'Camera is not available on this device.',
-    'image_too_large': 'Image file is too large. Please use a smaller image or try again.',
-    'image_corrupted': 'The image file appears to be corrupted. Please try taking a new photo.',
-    'ocr_timeout': 'OCR processing timed out. Please try with better lighting or a clearer image.',
-    'low_memory': 'Not enough memory to process this image. Please close other apps and try again.',
-    'network_error': 'Network connection required for enhanced OCR features.',
-    'storage_full': 'Device storage is full. Please free up space and try again.',
-    'mlkit_error': 'Text recognition service is temporarily unavailable.',
-    'processing_error': 'An error occurred while processing the image. Please try again.',
-    'long_receipt_error': 'Error processing long receipt sections. Please try capturing individual sections.',
-  };
+//  OCR Error Types
+enum OCRErrorType {
+  // Image-related errors
+  imageNotFound,
+  imageCorrupted,
+  imageTooLarge,
+  imageTooSmall,
+  imageFormatUnsupported,
+  
+  // OCR processing errors
+  ocrTimeout,
+  ocrServiceUnavailable,
+  lowImageQuality,
+  noTextDetected,
+  processingFailed,
+  
+  // Hardware/permissions
+  cameraPermissionDenied,
+  cameraNotAvailable,
+  cameraInitializationFailed,
+  
+  // System resources
+  lowMemory,
+  storageInsufficient,
+  networkUnavailable,
+  
+  // Long receipt specific
+  longReceiptSectionFailed,
+  longReceiptMergeFailed,
+  insufficientSections,
+  
+  // Generic
+  unknown,
+}
 
-  static String getErrorMessage(dynamic error, {String? context}) {
-    final errorType = _categorizeError(error);
-    final baseMessage = _errorMessages[errorType] ?? 'An unexpected error occurred. Please try again.';
-    
-    if (kDebugMode) {
-      debugPrint('OCR Error - Type: $errorType, Context: $context, Original: $error');
-    }
-    
-    return baseMessage;
-  }
+// Error Context for better debugging
+class OCRErrorContext {
+  final String operation;
+  final String? imagePath;
+  final Map<String, dynamic> metadata;
+  final DateTime timestamp;
+  final String? deviceInfo;
 
-  static String _categorizeError(dynamic error) {
-    final errorString = error.toString().toLowerCase();
-    
-    if (error is PlatformException) {
-      switch (error.code) {
-        case 'camera_access_denied':
-        case 'permission_denied':
-          return 'camera_permission_denied';
-        case 'camera_not_found':
-          return 'camera_not_available';
-        default:
-          return 'processing_error';
-      }
-    }
-    
-    if (error is FileSystemException) {
-      if (errorString.contains('no space left')) {
-        return 'storage_full';
-      }
-      return 'processing_error';
-    }
-    
-    if (errorString.contains('timeout')) {
-      return 'ocr_timeout';
-    }
-    
-    if (errorString.contains('memory') || errorString.contains('heap')) {
-      return 'low_memory';
-    }
-    
-    if (errorString.contains('network') || errorString.contains('connection')) {
-      return 'network_error';
-    }
-    
-    if (errorString.contains('image') && (errorString.contains('large') || errorString.contains('size'))) {
-      return 'image_too_large';
-    }
-    
-    if (errorString.contains('corrupt') || errorString.contains('invalid')) {
-      return 'image_corrupted';
-    }
-    
-    if (errorString.contains('mlkit') || errorString.contains('text recognition')) {
-      return 'mlkit_error';
-    }
-    
-    if (errorString.contains('long receipt') || errorString.contains('section')) {
-      return 'long_receipt_error';
-    }
-    
-    return 'processing_error';
-  }
+  OCRErrorContext({
+    required this.operation,
+    this.imagePath,
+    this.metadata = const {},
+    DateTime? timestamp,
+    this.deviceInfo,
+  }) : timestamp = timestamp ?? DateTime.now();
 
-  static bool isRetryable(dynamic error) {
-    final errorType = _categorizeError(error);
-    
-    switch (errorType) {
-      case 'camera_permission_denied':
-      case 'camera_not_available':
-      case 'storage_full':
-      case 'image_corrupted':
-        return false;
-      
-      case 'ocr_timeout':
-      case 'network_error':
-      case 'mlkit_error':
-      case 'processing_error':
-      case 'long_receipt_error':
-        return true;
-      
-      case 'low_memory':
-      case 'image_too_large':
-        return true; // Can retry with optimizations
-      
-      default:
-        return true;
-    }
-  }
-
-  static Map<String, String> getSuggestedActions(dynamic error) {
-    final errorType = _categorizeError(error);
-    
-    switch (errorType) {
-      case 'camera_permission_denied':
-        return {
-          'primary': 'Open Settings',
-          'secondary': 'Manual Entry',
-        };
-      
-      case 'camera_not_available':
-        return {
-          'primary': 'Manual Entry',
-          'secondary': 'Gallery Upload',
-        };
-      
-      case 'image_too_large':
-        return {
-          'primary': 'Retry with Compression',
-          'secondary': 'Take New Photo',
-        };
-      
-      case 'low_memory':
-        return {
-          'primary': 'Free Memory & Retry',
-          'secondary': 'Manual Entry',
-        };
-      
-      case 'ocr_timeout':
-        return {
-          'primary': 'Retry with Better Lighting',
-          'secondary': 'Manual Entry',
-        };
-      
-      case 'long_receipt_error':
-        return {
-          'primary': 'Try Standard Mode',
-          'secondary': 'Manual Entry',
-        };
-      
-      default:
-        return {
-          'primary': 'Retry',
-          'secondary': 'Manual Entry',
-        };
-    }
+  Map<String, dynamic> toJson() {
+    return {
+      'operation': operation,
+      'image_path': imagePath,
+      'metadata': metadata,
+      'timestamp': timestamp.toIso8601String(),
+      'device_info': deviceInfo,
+    };
   }
 }
 
-// Advanced error recovery system
+//  OCR Error Handler
+class OCRErrorHandler {
+  static const Map<OCRErrorType, String> _errorMessages = {
+    // Image errors
+    OCRErrorType.imageNotFound: 'Image file not found. Please try taking a new photo.',
+    OCRErrorType.imageCorrupted: 'Image file is corrupted. Please capture a new image.',
+    OCRErrorType.imageTooLarge: 'Image file is too large. Please try with lower resolution.',
+    OCRErrorType.imageTooSmall: 'Image is too small or has insufficient detail. Please capture a closer image.',
+    OCRErrorType.imageFormatUnsupported: 'Image format not supported. Please use JPEG or PNG.',
+    
+    // OCR processing errors
+    OCRErrorType.ocrTimeout: 'Text recognition timed out. Please try with better lighting or clearer image.',
+    OCRErrorType.ocrServiceUnavailable: 'Text recognition service temporarily unavailable.',
+    OCRErrorType.lowImageQuality: 'Image quality too low for accurate text recognition. Please improve lighting and focus.',
+    OCRErrorType.noTextDetected: 'No text detected in image. Please ensure the receipt is clearly visible.',
+    OCRErrorType.processingFailed: 'Processing failed. Please try again with a different angle or lighting.',
+    
+    // Hardware/permissions
+    OCRErrorType.cameraPermissionDenied: 'Camera permission required. Please enable in Settings.',
+    OCRErrorType.cameraNotAvailable: 'Camera not available on this device.',
+    OCRErrorType.cameraInitializationFailed: 'Failed to initialize camera. Please try again.',
+    
+    // System resources
+    OCRErrorType.lowMemory: 'Insufficient memory to process image. Please close other apps and try again.',
+    OCRErrorType.storageInsufficient: 'Insufficient storage space. Please free up space and try again.',
+    OCRErrorType.networkUnavailable: 'Network connection required for enhanced processing.',
+    
+    // Long receipt specific
+    OCRErrorType.longReceiptSectionFailed: 'Failed to process receipt section. Please try capturing individual sections.',
+    OCRErrorType.longReceiptMergeFailed: 'Failed to merge receipt sections. Please try standard capture mode.',
+    OCRErrorType.insufficientSections: 'Insufficient sections captured. Please capture more sections for better results.',
+    
+    // Generic
+    OCRErrorType.unknown: 'An unexpected error occurred. Please try again.',
+  };
+
+  static const Map<OCRErrorType, List<String>> _suggestedActions = {
+    OCRErrorType.imageNotFound: ['Retake Photo', 'Manual Entry'],
+    OCRErrorType.imageCorrupted: ['Retake Photo', 'Manual Entry'],
+    OCRErrorType.imageTooLarge: ['Retake with Lower Quality', 'Manual Entry'],
+    OCRErrorType.imageTooSmall: ['Retake Closer', 'Use Long Receipt Mode'],
+    OCRErrorType.lowImageQuality: ['Improve Lighting', 'Retake Photo', 'Manual Entry'],
+    OCRErrorType.noTextDetected: ['Retake with Better Angle', 'Manual Entry'],
+    OCRErrorType.cameraPermissionDenied: ['Open Settings', 'Manual Entry'],
+    OCRErrorType.cameraNotAvailable: ['Manual Entry', 'Gallery Upload'],
+    OCRErrorType.lowMemory: ['Close Apps & Retry', 'Manual Entry'],
+    OCRErrorType.longReceiptSectionFailed: ['Try Standard Mode', 'Manual Entry'],
+    OCRErrorType.longReceiptMergeFailed: ['Retake Sections', 'Try Standard Mode'],
+  };
+
+  static const Set<OCRErrorType> _retryableErrors = {
+    OCRErrorType.ocrTimeout,
+    OCRErrorType.ocrServiceUnavailable,
+    OCRErrorType.processingFailed,
+    OCRErrorType.cameraInitializationFailed,
+    OCRErrorType.lowMemory,
+    OCRErrorType.networkUnavailable,
+    OCRErrorType.longReceiptSectionFailed,
+  };
+
+  static const Set<OCRErrorType> _criticalErrors = {
+    OCRErrorType.cameraPermissionDenied,
+    OCRErrorType.cameraNotAvailable,
+    OCRErrorType.storageInsufficient,
+  };
+
+  static OCRErrorType categorizeError(dynamic error, {OCRErrorContext? context}) {
+    if (error is OCRException) {
+      return _categorizeOCRException(error);
+    }
+    
+    if (error is PlatformException) {
+      return _categorizePlatformException(error);
+    }
+    
+    if (error is CameraException) {
+      return _categorizeCameraException(error);
+    }
+    
+    if (error is FileSystemException) {
+      return _categorizeFileSystemException(error);
+    }
+    
+    if (error is TimeoutException) {
+      return OCRErrorType.ocrTimeout;
+    }
+    
+    final errorString = error.toString().toLowerCase();
+    
+    if (errorString.contains('memory') || errorString.contains('heap')) {
+      return OCRErrorType.lowMemory;
+    }
+    
+    if (errorString.contains('network') || errorString.contains('connection')) {
+      return OCRErrorType.networkUnavailable;
+    }
+    
+    if (errorString.contains('corrupted') || errorString.contains('invalid')) {
+      return OCRErrorType.imageCorrupted;
+    }
+    
+    if (errorString.contains('timeout')) {
+      return OCRErrorType.ocrTimeout;
+    }
+    
+    if (errorString.contains('no text') || errorString.contains('empty')) {
+      return OCRErrorType.noTextDetected;
+    }
+    
+    return OCRErrorType.unknown;
+  }
+
+  static String getErrorMessage(dynamic error, {OCRErrorContext? context}) {
+    final errorType = categorizeError(error, context: context);
+    return _errorMessages[errorType] ?? _errorMessages[OCRErrorType.unknown]!;
+  }
+
+  static List<String> getSuggestedActions(dynamic error, {OCRErrorContext? context}) {
+    final errorType = categorizeError(error, context: context);
+    return _suggestedActions[errorType] ?? ['Retry', 'Manual Entry'];
+  }
+
+  static bool isRetryable(dynamic error, {OCRErrorContext? context}) {
+    final errorType = categorizeError(error, context: context);
+    return _retryableErrors.contains(errorType);
+  }
+
+  static bool isCritical(dynamic error, {OCRErrorContext? context}) {
+    final errorType = categorizeError(error, context: context);
+    return _criticalErrors.contains(errorType);
+  }
+
+  static OCRErrorType _categorizeOCRException(OCRException error) {
+    final message = error.message.toLowerCase();
+    
+    if (message.contains('not found')) return OCRErrorType.imageNotFound;
+    if (message.contains('corrupted')) return OCRErrorType.imageCorrupted;
+    if (message.contains('too large')) return OCRErrorType.imageTooLarge;
+    if (message.contains('too small')) return OCRErrorType.imageTooSmall;
+    if (message.contains('timeout')) return OCRErrorType.ocrTimeout;
+    if (message.contains('no text')) return OCRErrorType.noTextDetected;
+    
+    return OCRErrorType.processingFailed;
+  }
+
+  static OCRErrorType _categorizePlatformException(PlatformException error) {
+    switch (error.code) {
+      case 'camera_access_denied':
+      case 'permission_denied':
+        return OCRErrorType.cameraPermissionDenied;
+      case 'camera_not_found':
+        return OCRErrorType.cameraNotAvailable;
+      case 'out_of_memory':
+        return OCRErrorType.lowMemory;
+      default:
+        return OCRErrorType.unknown;
+    }
+  }
+
+  static OCRErrorType _categorizeCameraException(CameraException error) {
+    switch (error.code) {
+      case 'CameraAccessDenied':
+      case 'CameraAccessDeniedWithoutPrompt':
+      case 'CameraAccessRestricted':
+        return OCRErrorType.cameraPermissionDenied;
+      case 'CameraNotFound':
+        return OCRErrorType.cameraNotAvailable;
+      case 'CameraNotInitialized':
+      case 'CameraAccessFailed':
+        return OCRErrorType.cameraInitializationFailed;
+      default:
+        return OCRErrorType.unknown;
+    }
+  }
+
+  static OCRErrorType _categorizeFileSystemException(FileSystemException error) {
+    final message = error.message.toLowerCase();
+    
+    if (message.contains('no space') || message.contains('disk full')) {
+      return OCRErrorType.storageInsufficient;
+    }
+    
+    if (message.contains('not found')) {
+      return OCRErrorType.imageNotFound;
+    }
+    
+    return OCRErrorType.unknown;
+  }
+
+  // Error logging for analytics
+  static void logError(
+    dynamic error, {
+    OCRErrorContext? context,
+    StackTrace? stackTrace,
+  }) {
+    final errorType = categorizeError(error, context: context);
+    
+    if (kDebugMode) {
+      debugPrint('🚨 OCR Error: $errorType');
+      debugPrint('   Message: ${getErrorMessage(error, context: context)}');
+      debugPrint('   Context: ${context?.toJson()}');
+      debugPrint('   Error: $error');
+      if (stackTrace != null) {
+        debugPrint('   Stack: $stackTrace');
+      }
+    }
+    
+    // In production, send to analytics service
+    // Analytics.logError(errorType, error, context, stackTrace);
+  }
+}
+
+//  Error Recovery System
 class OCRErrorRecovery {
   static const int maxRetryAttempts = 3;
-  static const Duration retryDelay = Duration(seconds: 2);
-  
+  static const Duration baseRetryDelay = Duration(seconds: 2);
+
   static Future<T?> executeWithRecovery<T>(
     Future<T> Function() operation,
     String operationName, {
     int maxAttempts = maxRetryAttempts,
+    OCRErrorContext? context,
     Function(dynamic error, int attempt)? onError,
     Function(int attempt)? onRetry,
+    Function(T result)? onSuccess,
   }) async {
     int attempt = 0;
     dynamic lastError;
-    
+
     while (attempt < maxAttempts) {
       try {
-        return await operation();
-      } catch (error) {
+        final result = await operation();
+        if (onSuccess != null) {
+          onSuccess(result);
+        }
+        return result;
+      } catch (error, stackTrace) {
         attempt++;
         lastError = error;
-        
+
+        // Log error
+        OCRErrorHandler.logError(
+          error,
+          context: context,
+          stackTrace: stackTrace,
+        );
+
         if (onError != null) {
           onError(error, attempt);
         }
+
+        final errorType = OCRErrorHandler.categorizeError(error, context: context);
         
-        if (attempt >= maxAttempts || !OCRErrorHandler.isRetryable(error)) {
+        // Don't retry critical errors
+        if (OCRErrorHandler.isCritical(error, context: context)) {
           break;
         }
-        
+
+        // Don't retry if max attempts reached or error is not retryable
+        if (attempt >= maxAttempts || !OCRErrorHandler.isRetryable(error, context: context)) {
+          break;
+        }
+
         if (onRetry != null) {
           onRetry(attempt);
         }
+
+        // Apply recovery strategy
+        await _applyRecoveryStrategy(error, errorType, attempt);
         
-        // Apply recovery strategies before retry
-        await _applyRecoveryStrategy(error);
-        await Future.delayed(retryDelay * attempt);
+        // Progressive delay
+        await Future.delayed(baseRetryDelay * attempt);
       }
     }
-    
+
     throw lastError ?? Exception('Maximum retry attempts exceeded');
   }
-  
-  static Future<void> _applyRecoveryStrategy(dynamic error) async {
-    final errorType = OCRErrorHandler._categorizeError(error);
-    
+
+  static Future<void> _applyRecoveryStrategy(
+    dynamic error,
+    OCRErrorType errorType,
+    int attempt,
+  ) async {
     switch (errorType) {
-      case 'low_memory':
-        // Force garbage collection
+      case OCRErrorType.lowMemory:
         await _forceGarbageCollection();
         break;
-      
-      case 'image_too_large':
-        // The next attempt should use smaller image size
+        
+      case OCRErrorType.cameraInitializationFailed:
+        await _resetCameraState();
         break;
-      
-      case 'ocr_timeout':
-        // Clear any cached ML models to force fresh initialization
+        
+      case OCRErrorType.ocrTimeout:
+        // Increase timeout for next attempt
+        debugPrint('🔄 Increasing timeout for attempt $attempt');
         break;
-      
+        
+      case OCRErrorType.networkUnavailable:
+        await _waitForNetwork();
+        break;
+        
       default:
-        // General recovery - small delay
         await Future.delayed(Duration(milliseconds: 500));
         break;
     }
   }
-  
+
   static Future<void> _forceGarbageCollection() async {
-    // Force garbage collection by creating and releasing memory pressure
+    debugPrint('🧹 Forcing garbage collection...');
+    
+    // Create memory pressure to trigger GC
     final List<List<int>> memoryPressure = [];
     try {
       for (int i = 0; i < 10; i++) {
         memoryPressure.add(List.filled(100000, i));
       }
     } catch (e) {
-      // Ignore memory allocation errors
+      // Expected to fail due to memory pressure
     } finally {
       memoryPressure.clear();
     }
     
-    // Give the GC time to run
     await Future.delayed(Duration(milliseconds: 100));
   }
-}
 
-// OCR Testing Framework
-class OCRTestFramework {
-  static const String testImagesPath = 'test_images';
-  
-  static Future<void> runOCRTests() async {
-    if (!kDebugMode) return;
-    
-    debugPrint('🧪 Starting OCR Test Suite...');
-    
-    await _testImageProcessing();
-    await _testErrorHandling();
-    await _testPerformance();
-    await _testLongReceipts();
-    
-    debugPrint('✅ OCR Test Suite completed');
+  static Future<void> _resetCameraState() async {
+    debugPrint('🔄 Resetting camera state...');
+    await Future.delayed(Duration(milliseconds: 500));
   }
-  
-  static Future<void> _testImageProcessing() async {
-    debugPrint('📸 Testing Image Processing...');
-    
-    final testCases = [
-      'receipt_hi_lo_clear.jpg',
-      'receipt_megamart_blurry.jpg',
-      'receipt_pricesmart_rotated.jpg',
-      'receipt_generic_low_light.jpg',
-      'receipt_faded.jpg',
-      'price_tag_individual.jpg',
-    ];
-    
-    for (final testCase in testCases) {
-      try {
-        debugPrint('  Testing: $testCase');
-        // Here you would load the test image and process it
-        // await SuperAdvancedOCRProcessor.processReceiptImage(testImagePath);
-        debugPrint('  ✅ $testCase - PASSED');
-      } catch (e) {
-        debugPrint('  ❌ $testCase - FAILED: $e');
-      }
-    }
-  }
-  
-  static Future<void> _testErrorHandling() async {
-    debugPrint('🚨 Testing Error Handling...');
-    
-    final errorTests = [
-      () => throw PlatformException(code: 'camera_access_denied'),
-      () => throw FileSystemException('No space left on device'),
-      () => throw Exception('OCR timeout'),
-      () => throw OutOfMemoryError(),
-    ];
-    
-    for (int i = 0; i < errorTests.length; i++) {
-      try {
-        errorTests[i]();
-      } catch (e) {
-        final errorMessage = OCRErrorHandler.getErrorMessage(e);
-        final isRetryable = OCRErrorHandler.isRetryable(e);
-        final actions = OCRErrorHandler.getSuggestedActions(e);
-        
-        debugPrint('  Error Test ${i + 1}:');
-        debugPrint('    Message: $errorMessage');
-        debugPrint('    Retryable: $isRetryable');
-        debugPrint('    Actions: $actions');
-      }
-    }
-  }
-  
-  static Future<void> _testPerformance() async {
-    debugPrint('⚡ Testing Performance...');
-    
-    // Simulate different image sizes and complexities
-    final performanceTests = [
-      {'name': 'Small Receipt', 'width': 800, 'height': 1200},
-      {'name': 'Large Receipt', 'width': 2000, 'height': 3000},
-      {'name': 'Long Receipt Section', 'width': 1200, 'height': 2000},
-    ];
-    
-    for (final test in performanceTests) {
-      final stopwatch = Stopwatch()..start();
-      
-      try {
-        // Simulate OCR processing time
-        await Future.delayed(Duration(milliseconds: 
-          (test['width']! as int) * (test['height']! as int) ~/ 1000000));
-        
-        stopwatch.stop();
-        debugPrint('  ${test['name']}: ${stopwatch.elapsedMilliseconds}ms');
-        
-        if (stopwatch.elapsedMilliseconds > 10000) {
-          debugPrint('    ⚠️  Warning: Processing time exceeds 10 seconds');
-        }
-      } catch (e) {
-        debugPrint('  ${test['name']}: FAILED - $e');
-      }
-    }
-  }
-  
-  static Future<void> _testLongReceipts() async {
-    debugPrint('📄 Testing Long Receipt Processing...');
-    
-    final longReceiptTests = [
-      {'sections': 2, 'overlap': 0.2},
-      {'sections': 3, 'overlap': 0.3},
-      {'sections': 5, 'overlap': 0.25},
-    ];
-    
-    for (final test in longReceiptTests) {
-      try {
-        debugPrint('  Testing ${test['sections']} sections with ${(test['overlap']! * 100).toInt()}% overlap');
-        
-        // Simulate long receipt processing
-        await Future.delayed(Duration(milliseconds: (test['sections'] as int) * 2000));
-        
-        debugPrint('  ✅ Long receipt test - PASSED');
-      } catch (e) {
-        debugPrint('  ❌ Long receipt test - FAILED: $e');
-      }
-    }
-  }
-  
-  static Map<String, dynamic> generateTestReport() {
-    return {
-      'timestamp': DateTime.now().toIso8601String(),
-      'tests_run': 4,
-      'categories': [
-        'Image Processing',
-        'Error Handling', 
-        'Performance',
-        'Long Receipts'
-      ],
-      'environment': {
-        'debug_mode': kDebugMode,
-        'platform': Platform.operatingSystem,
-      },
-    };
+
+  static Future<void> _waitForNetwork() async {
+    debugPrint('🌐 Waiting for network...');
+    await Future.delayed(Duration(seconds: 1));
   }
 }
 
-// Memory optimization utilities
-class OCRMemoryOptimizer {
-  static const int maxImageDimension = 2048;
-  static const int maxFileSize = 10 * 1024 * 1024; // 10MB
-  static const double compressionQuality = 0.85;
-  
-  static Future<bool> checkMemoryAvailability() async {
-    try {
-      // Create a temporary allocation to check available memory
-      final testAllocation = List.filled(1000000, 0); // ~4MB
-      testAllocation.clear();
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-  
-  static Future<String?> optimizeImageForOCR(String imagePath) async {
-    try {
-      final file = File(imagePath);
-      final fileSize = await file.length();
-      
-      if (fileSize <= maxFileSize) {
-        return imagePath; // No optimization needed
-      }
-      
-      debugPrint('🔧 Optimizing image: ${fileSize / (1024 * 1024)}MB -> target: ${maxFileSize / (1024 * 1024)}MB');
-      
-      // In a real implementation, you would:
-      // 1. Load the image
-      // 2. Resize if necessary
-      // 3. Compress with appropriate quality
-      // 4. Save to temporary file
-      // 5. Return new path
-      
-      // For now, return the original path
-      return imagePath;
-    } catch (e) {
-      debugPrint('Failed to optimize image: $e');
-      return null;
-    }
-  }
-  
-  static void clearOCRCache() {
-    // Clear any cached OCR data
-    debugPrint('🧹 Clearing OCR cache...');
-    
-    // In a real implementation:
-    // - Clear temporary files
-    // - Release ML model cache
-    // - Clear image processing cache
-  }
-  
-  static Future<void> preloadOCRResources() async {
-    debugPrint('📦 Preloading OCR resources...');
-    
-    try {
-      // Preload ML Kit models
-      // Initialize text recognizer
-      // Cache common enhancement filters
-      
-      await Future.delayed(Duration(milliseconds: 500)); // Simulate preloading
-      debugPrint('✅ OCR resources preloaded');
-    } catch (e) {
-      debugPrint('⚠️ Failed to preload OCR resources: $e');
-    }
-  }
-}
+// Error UI Components
+class OCRErrorDialog extends StatelessWidget {
+  final dynamic error;
+  final OCRErrorContext? context;
+  final VoidCallback? onRetry;
+  final VoidCallback? onManualEntry;
+  final VoidCallback? onDismiss;
 
-// User feedback and analytics
-class OCRUserFeedback {
-  static void trackUserCorrection({
-    required String originalText,
-    required String correctedText,
-    required double originalConfidence,
-  }) {
-    if (kDebugMode) {
-      debugPrint('📝 User Correction Tracked:');
-      debugPrint('  Original: "$originalText" (${(originalConfidence * 100).toStringAsFixed(1)}%)');
-      debugPrint('  Corrected: "$correctedText"');
-    }
-    
-    // In production:
-    // - Send to analytics
-    // - Update ML model training data
-    // - Improve OCR patterns
-  }
-  
-  static void trackUserSatisfaction({
-    required String sessionId,
-    required int rating, // 1-5
-    required String feedback,
-    required Map<String, dynamic> context,
-  }) {
-    if (kDebugMode) {
-      debugPrint('⭐ User Satisfaction: $rating/5');
-      debugPrint('   Feedback: "$feedback"');
-      debugPrint('   Context: $context');
-    }
-    
-    // In production:
-    // - Store in analytics database
-    // - Trigger alerts for low ratings
-    // - Generate improvement insights
-  }
-  
-  static void trackFeatureUsage({
-    required String feature,
-    required bool successful,
-    required Duration duration,
-    Map<String, dynamic>? metadata,
-  }) {
-    if (kDebugMode) {
-      debugPrint('📊 Feature Usage: $feature');
-      debugPrint('   Success: $successful');
-      debugPrint('   Duration: ${duration.inMilliseconds}ms');
-      if (metadata != null) {
-        debugPrint('   Metadata: $metadata');
-      }
-    }
-  }
-}
+  const OCRErrorDialog({
+    super.key,
+    required this.error,
+    this.context,
+    this.onRetry,
+    this.onManualEntry,
+    this.onDismiss,
+  });
 
-// Integration test widget
-class OCRIntegrationTestWidget extends StatefulWidget {
-  const OCRIntegrationTestWidget({super.key});
-  
-  @override
-  _OCRIntegrationTestWidgetState createState() => _OCRIntegrationTestWidgetState();
-}
-
-class _OCRIntegrationTestWidgetState extends State<OCRIntegrationTestWidget> {
-  final List<String> _testResults = [];
-  bool _isRunning = false;
-  
   @override
   Widget build(BuildContext context) {
-    if (!kDebugMode) {
-      return Container(
-        child: Text('Test widget only available in debug mode'),
-      );
-    }
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('OCR Integration Tests'),
-        actions: [
-          IconButton(
-            onPressed: _isRunning ? null : _runTests,
-            icon: Icon(Icons.play_arrow),
+    final errorType = OCRErrorHandler.categorizeError(error, context: this.context);
+    final message = OCRErrorHandler.getErrorMessage(error, context: this.context);
+    final actions = OCRErrorHandler.getSuggestedActions(error, context: this.context);
+    final isRetryable = OCRErrorHandler.isRetryable(error, context: this.context);
+    final isCritical = OCRErrorHandler.isCritical(error, context: this.context);
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(
+            isCritical ? Icons.error : Icons.warning,
+            color: isCritical ? Colors.red : Colors.orange,
           ),
+          SizedBox(width: 8),
+          Text(isCritical ? 'Critical Error' : 'Processing Error'),
         ],
       ),
-      body: Column(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_isRunning)
-            LinearProgressIndicator(),
-          
-          Expanded(
-            child: ListView.builder(
-              itemCount: _testResults.length,
-              itemBuilder: (context, index) {
-                final result = _testResults[index];
-                final isSuccess = result.contains('✅');
-                
-                return ListTile(
-                  leading: Icon(
-                    isSuccess ? Icons.check_circle : Icons.error,
-                    color: isSuccess ? Colors.green : Colors.red,
-                  ),
-                  title: Text(result),
-                  dense: true,
-                );
-              },
+          Text(message),
+          if (kDebugMode) ...[
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'Debug: ${errorType.toString()}\n${error.toString()}',
+                style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+              ),
             ),
-          ),
-          
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isRunning ? null : _runTests,
-                    child: Text('Run Tests'),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _clearResults,
-                    child: Text('Clear'),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
         ],
+      ),
+      actions: [
+        if (onDismiss != null)
+          TextButton(
+            onPressed: onDismiss,
+            child: Text('Dismiss'),
+          ),
+        if (onManualEntry != null)
+          TextButton(
+            onPressed: onManualEntry,
+            child: Text('Manual Entry'),
+          ),
+        if (isRetryable && onRetry != null)
+          ElevatedButton(
+            onPressed: onRetry,
+            child: Text('Retry'),
+          ),
+      ],
+    );
+  }
+}
+
+class OCRErrorSnackBar {
+  static void show(
+    BuildContext context,
+    dynamic error, {
+    OCRErrorContext? errorContext,
+    VoidCallback? onRetry,
+    VoidCallback? onAction,
+    String? actionLabel,
+  }) {
+    final message = OCRErrorHandler.getErrorMessage(error, context: errorContext);
+    final isRetryable = OCRErrorHandler.isRetryable(error, context: errorContext);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 4),
+        action: isRetryable && onRetry != null
+            ? SnackBarAction(
+                label: 'Retry',
+                onPressed: onRetry,
+                textColor: Colors.white,
+              )
+            : onAction != null
+                ? SnackBarAction(
+                    label: actionLabel ?? 'Action',
+                    onPressed: onAction,
+                    textColor: Colors.white,
+                  )
+                : null,
       ),
     );
   }
-  
-  Future<void> _runTests() async {
-    setState(() {
-      _isRunning = true;
-      _testResults.clear();
-    });
-    
-    await _runBasicTests();
-    await _runErrorTests();
-    await _runPerformanceTests();
-    
-    setState(() {
-      _isRunning = false;
-    });
-  }
-  
-  Future<void> _runBasicTests() async {
-    _addResult('Starting basic OCR tests...');
-    
-    // Test memory check
-    final hasMemory = await OCRMemoryOptimizer.checkMemoryAvailability();
-    _addResult(hasMemory ? '✅ Memory check passed' : '❌ Memory check failed');
-    
-    // Test error categorization
-    try {
-      final error = PlatformException(code: 'camera_access_denied');
-      final message = OCRErrorHandler.getErrorMessage(error);
-      _addResult(message.isNotEmpty ? '✅ Error handling works' : '❌ Error handling failed');
-    } catch (e) {
-      _addResult('❌ Error handling test failed: $e');
-    }
-  }
-  
-  Future<void> _runErrorTests() async {
-    _addResult('Starting error handling tests...');
-    
-    final testErrors = [
-      PlatformException(code: 'camera_access_denied'),
-      Exception('OCR timeout'),
-      FileSystemException('No space left'),
-    ];
-    
-    for (int i = 0; i < testErrors.length; i++) {
-      try {
-        final error = testErrors[i];
-        final message = OCRErrorHandler.getErrorMessage(error);
-        final isRetryable = OCRErrorHandler.isRetryable(error);
-        _addResult('✅ Error ${i + 1}: $message (Retryable: $isRetryable)');
-      } catch (e) {
-        _addResult('❌ Error test ${i + 1} failed: $e');
+}
+
+// Error Boundary Widget
+class OCRErrorBoundary extends StatefulWidget {
+  final Widget child;
+  final Widget Function(BuildContext, dynamic, StackTrace?)? errorBuilder;
+  final Function(dynamic, StackTrace?)? onError;
+
+  const OCRErrorBoundary({
+    super.key,
+    required this.child,
+    this.errorBuilder,
+    this.onError,
+  });
+
+  @override
+  _OCRErrorBoundaryState createState() => _OCRErrorBoundaryState();
+}
+
+class _OCRErrorBoundaryState extends State<OCRErrorBoundary> {
+  dynamic _error;
+  StackTrace? _stackTrace;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      if (widget.errorBuilder != null) {
+        return widget.errorBuilder!(context, _error, _stackTrace);
       }
+      
+      return _buildDefaultErrorWidget();
+    }
+    
+    return widget.child;
+  }
+
+  Widget _buildDefaultErrorWidget() {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Error'),
+        backgroundColor: Colors.red,
+      ),
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 80,
+                color: Colors.red,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Something went wrong',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                OCRErrorHandler.getErrorMessage(_error),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _error = null;
+                    _stackTrace = null;
+                  });
+                },
+                child: Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleError(dynamic error, StackTrace stackTrace) {
+    setState(() {
+      _error = error;
+      _stackTrace = stackTrace;
+    });
+    
+    if (widget.onError != null) {
+      widget.onError!(error, stackTrace);
+    }
+    
+    OCRErrorHandler.logError(
+      error,
+      stackTrace: stackTrace,
+    );
+  }
+}
+
+// Specific OCR Exception Class
+class OCRException implements Exception {
+  final String message;
+  final OCRErrorType? type;
+  final Map<String, dynamic>? metadata;
+
+  OCRException(
+    this.message, {
+    this.type,
+    this.metadata,
+  });
+
+  @override
+  String toString() => 'OCRException: $message';
+}
+
+// Extension to add error handling to Future operations
+extension FutureErrorHandling<T> on Future<T> {
+  Future<T?> handleOCRErrors({
+    OCRErrorContext? context,
+    bool showSnackBar = false,
+    BuildContext? snackBarContext,
+  }) async {
+    try {
+      return await this;
+    } catch (error, stackTrace) {
+      OCRErrorHandler.logError(
+        error,
+        context: context,
+        stackTrace: stackTrace,
+      );
+      
+      if (showSnackBar && snackBarContext != null) {
+        OCRErrorSnackBar.show(snackBarContext, error, errorContext: context);
+      }
+      
+      return null;
     }
   }
-  
-  Future<void> _runPerformanceTests() async {
-    _addResult('Starting performance tests...');
+}
+
+// Utility functions for common error scenarios
+class OCRErrorUtils {
+  static Future<void> handleCameraError(
+    BuildContext context,
+    dynamic error, {
+    VoidCallback? onRetry,
+    VoidCallback? onManualEntry,
+  }) async {
+    final errorType = OCRErrorHandler.categorizeError(error);
     
-    final stopwatch = Stopwatch()..start();
-    
-    // Simulate OCR processing
-    await Future.delayed(Duration(milliseconds: 100));
-    
-    stopwatch.stop();
-    
-    final processingTime = stopwatch.elapsedMilliseconds;
-    _addResult(processingTime < 1000 
-      ? '✅ Performance test passed: ${processingTime}ms'
-      : '⚠️ Performance test slow: ${processingTime}ms');
+    if (errorType == OCRErrorType.cameraPermissionDenied) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Camera Permission Required'),
+          content: Text('Please enable camera access in Settings to scan receipts.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                // Open app settings
+                // In production, use package:permission_handler
+              },
+              child: Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => OCRErrorDialog(
+          error: error,
+          onRetry: onRetry,
+          onManualEntry: onManualEntry,
+          onDismiss: () => Navigator.pop(ctx),
+        ),
+      );
+    }
   }
-  
-  void _addResult(String result) {
-    setState(() {
-      _testResults.add(result);
-    });
-  }
-  
-  void _clearResults() {
-    setState(() {
-      _testResults.clear();
-    });
+
+  static Future<void> handleOCRProcessingError(
+    BuildContext context,
+    dynamic error, {
+    String? imagePath,
+    VoidCallback? onRetry,
+    VoidCallback? onManualEntry,
+  }) async {
+    final errorContext = OCRErrorContext(
+      operation: 'ocr_processing',
+      imagePath: imagePath,
+      metadata: {'screen': 'processing'},
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => OCRErrorDialog(
+        error: error,
+        context: errorContext,
+        onRetry: onRetry,
+        onManualEntry: onManualEntry,
+        onDismiss: () => Navigator.pop(ctx),
+      ),
+    );
   }
 }
