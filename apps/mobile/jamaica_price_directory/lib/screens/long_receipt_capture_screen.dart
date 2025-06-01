@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
-import '../services/ocr_processor.dart';
-import '../services/performance_optimized_ocr_manager.dart';
-import '../services/unified_ocr_service.dart';
+import '../services/consolidated_ocr_service.dart';
 import '../utils/camera_error_handler.dart';
 import 'long_receipt_results_screen.dart'; // NEW: Separate file
 
@@ -25,6 +23,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
   int _currentSection = 1;
   bool _isProcessing = false;
   String? _guideText;
+  int _currentProcessingSection = 0;
 
   @override
   void initState() {
@@ -77,8 +76,9 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
   }
 
   Future<void> _captureSection() async {
-    if (!_isCameraInitialized || _isCapturing || _cameraController == null)
+    if (!_isCameraInitialized || _isCapturing || _cameraController == null) {
       return;
+    }
 
     setState(() {
       _isCapturing = true;
@@ -182,7 +182,6 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
         builder: (ctx) => _buildProcessingDialog(),
       );
 
-      // Extract section paths from captured sections
       final sectionPaths = _capturedSections
           .map((section) => section.imagePath)
           .toList();
@@ -191,13 +190,11 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
         _currentProcessingSection = _capturedSections.length;
       });
 
-      // Use UnifiedOCRService to process all sections at once
-      final result = await UnifiedOCRService.processLongReceipt(
+      final result = await ConsolidatedOCRService.instance.processLongReceipt(
         sectionPaths,
         priority: ProcessingPriority.normal,
       );
 
-      // Create merged result from UnifiedOCRService result
       final mergedResult = MergedReceiptResult(
         prices: result.prices,
         fullText: result.fullText,
@@ -205,7 +202,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
         confidence: result.confidence,
       );
 
-      Navigator.of(context).pop(); // Close processing dialog
+      Navigator.of(context).pop(); // Close progress dialog
 
       Navigator.pushReplacement(
         context,
@@ -217,7 +214,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
         ),
       );
     } catch (e) {
-      Navigator.of(context).pop(); // Close processing dialog
+      Navigator.of(context).pop(); // Close progress dialog
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Processing failed: $e')));
@@ -228,7 +225,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
     }
   }
 
-  int _currentProcessingSection = 0;
+
 
   Widget _buildProcessingDialog() {
     return AlertDialog(

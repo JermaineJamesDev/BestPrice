@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'dart:math';
 
-import 'ocr_processor.dart';
+import 'consolidated_ocr_service.dart';
 
 /// Enhanced NLP Processor for OCR text understanding and enhancement
 class NLPProcessor {

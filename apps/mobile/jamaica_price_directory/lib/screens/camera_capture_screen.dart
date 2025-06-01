@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:jamaica_price_directory/screens/enhanced_photo_preview_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
-import 'dart:io';
 
-import '../services/unified_ocr_service.dart';
+import '../services/consolidated_ocr_service.dart';
 import '../utils/camera_error_handler.dart';
 import '../services/ocr_error_handler.dart';
-import '../services/performance_optimized_ocr_manager.dart';
-import 'enhanced_ocr_processing_screen.dart';
-import 'enhanced_ocr_results_screen.dart';
 
 class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
@@ -20,7 +17,6 @@ class CameraCaptureScreen extends StatefulWidget {
 
 class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
-  // Camera related
   CameraController? _cameraController;
   List<CameraDescription> _cameras = [];
   bool _isCameraInitialized = false;
@@ -30,17 +26,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   bool _isFlashOn = false;
   bool _isCapturing = false;
   bool _isDisposed = false;
-
-  // Error handling
   String? _errorMessage;
   OCRErrorType? _currentErrorType;
-
-  // Performance monitoring
   CancellationToken? _currentCancellationToken;
   SystemPerformanceMetrics? _currentMetrics;
-  final bool _isPerformanceMonitoringEnabled = true;
 
-  // Animation controllers
+  final bool _isPerformanceMonitoringEnabled = true;
   late AnimationController _errorAnimationController;
   late AnimationController _performanceIndicatorController;
   late Animation<double> _errorFadeAnimation;
@@ -70,7 +61,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       duration: Duration(milliseconds: 300),
       vsync: this,
     );
-
     _performanceIndicatorController = AnimationController(
       duration: Duration(milliseconds: 1000),
       vsync: this,
@@ -143,7 +133,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     });
 
     try {
-      // Check permissions first
       final cameraPermission = await Permission.camera.request();
       if (cameraPermission.isDenied) {
         throw OCRException(
@@ -156,7 +145,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         _hasPermission = true;
       });
 
-      // Check camera availability
       if (!await CameraErrorHandler.isCameraAvailable()) {
         throw OCRException(
           'No cameras available',
@@ -164,7 +152,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         );
       }
 
-      // Get available cameras
       _cameras =
           await CameraErrorHandler.handleCameraOperation<
             List<CameraDescription>
@@ -186,12 +173,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         );
       }
 
-      // Dispose existing controller
       await _disposeCamera();
-
       if (_isDisposed) return;
 
-      // Create and initialize controller
       _cameraController = CameraErrorHandler.createOptimizedController(
         _cameras[_selectedCameraIndex],
       );
@@ -206,7 +190,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         });
       }
 
-      // Update performance metrics
       await _updatePerformanceMetrics();
     } catch (e) {
       if (mounted && !_isDisposed) {
@@ -255,7 +238,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
     _errorAnimationController.forward();
 
-    // Show error dialog for critical errors
     if (OCRErrorHandler.isCritical(error)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showCriticalErrorDialog(error);
@@ -334,7 +316,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       _isCapturing = true;
     });
 
-    // Create cancellation token for this operation
     _currentCancellationToken = CancellationToken();
 
     try {
@@ -356,8 +337,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         ),
         onError: (error, attempt) {
           debugPrint('Photo capture error (attempt $attempt): $error');
-
-          // Show error snackbar
           OCRErrorSnackBar.show(
             context,
             error,
@@ -373,7 +352,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       );
 
       if (mounted && !_isDisposed && image != null) {
-        // Navigate to photo preview with performance optimization
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
@@ -393,7 +371,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         }
       }
     } catch (e) {
-      // Handle capture errors
       _handleCameraError(e);
     } finally {
       if (mounted && !_isDisposed) {
@@ -405,8 +382,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Future<void> _toggleFlash() async {
-    if (!_isCameraInitialized || _cameraController == null || _isDisposed)
+    if (!_isCameraInitialized || _cameraController == null || _isDisposed) {
       return;
+    }
 
     await OCRErrorRecovery.executeWithRecovery(
       () async {
@@ -420,7 +398,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       'flash_toggle',
       onError: (error, attempt) {
         debugPrint('Flash toggle error: $error');
-        // Revert flash state on error
         if (mounted && !_isDisposed) {
           setState(() {
             _isFlashOn = !_isFlashOn;
@@ -441,11 +418,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     await OCRErrorRecovery.executeWithRecovery(
       () async {
         await _disposeCamera();
-
         _cameraController = CameraErrorHandler.createOptimizedController(
           _cameras[_selectedCameraIndex],
         );
-
         await _cameraController!.initialize();
         await _cameraController!.setFlashMode(FlashMode.off);
       },
@@ -468,8 +443,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   Future<void> _updatePerformanceMetrics() async {
     if (!_isPerformanceMonitoringEnabled) return;
+
     try {
-      _currentMetrics = await PerformanceOptimizedOCRManager.getSystemMetrics();
+      _currentMetrics = await ConsolidatedOCRService.instance
+          .getSystemMetrics();
     } catch (e) {
       debugPrint('Failed to update performance metrics: $e');
     }
@@ -484,25 +461,18 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         foregroundColor: Colors.white,
         title: const Text('Enhanced Camera'),
         actions: [
-          // Performance indicator
           if (_isPerformanceMonitoringEnabled && _currentMetrics != null)
             _buildPerformanceIndicator(),
-
-          // Flash toggle
           if (_isCameraInitialized && !_isCapturing)
             IconButton(
               onPressed: _toggleFlash,
               icon: Icon(_isFlashOn ? Icons.flash_on : Icons.flash_off),
             ),
-
-          // Camera switch
           if (_cameras.length > 1 && _isCameraInitialized && !_isCapturing)
             IconButton(
               onPressed: _switchCamera,
               icon: const Icon(Icons.flip_camera_ios),
             ),
-
-          // Retry button
           if (_errorMessage != null || _isLoading)
             IconButton(
               onPressed: () async {
@@ -518,8 +488,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       body: Stack(
         children: [
           _buildBody(),
-
-          // Error overlay
           if (_errorMessage != null) _buildErrorOverlay(),
         ],
       ),
@@ -955,205 +923,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               icon: const Icon(Icons.edit, color: Colors.white, size: 32),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// Enhanced Photo Preview Screen with Performance Integration
-class EnhancedPhotoPreviewScreen extends StatefulWidget {
-  final String imagePath;
-  final SystemPerformanceMetrics? performanceMetrics;
-  final CancellationToken? cancellationToken;
-
-  const EnhancedPhotoPreviewScreen({
-    super.key,
-    required this.imagePath,
-    this.performanceMetrics,
-    this.cancellationToken,
-  });
-
-  @override
-  _EnhancedPhotoPreviewScreenState createState() =>
-      _EnhancedPhotoPreviewScreenState();
-}
-
-class _EnhancedPhotoPreviewScreenState
-    extends State<EnhancedPhotoPreviewScreen> {
-  bool _isProcessing = false;
-
-  Future<void> _processWithOptimization() async {
-    setState(() {
-      _isProcessing = true;
-    });
-
-    try {
-      ProcessingPriority priority = ProcessingPriority.normal;
-
-      if (widget.performanceMetrics != null) {
-        final metrics = widget.performanceMetrics!;
-        if (metrics.memoryUsageMB > 400 || metrics.cpuUsagePercent > 80) {
-          priority = ProcessingPriority.low;
-        } else if (metrics.batteryLevel < 20) {
-          priority = ProcessingPriority.low;
-        }
-      }
-
-      // Use UnifiedOCRService instead of PerformanceOptimizedOCRManager
-      final result = await UnifiedOCRService.processSingleReceipt(
-        widget.imagePath,
-        priority: priority,
-        cancellationToken: widget.cancellationToken,
-      );
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EnhancedOCRResultsScreen(
-              imagePath: widget.imagePath,
-              extractedPrices: result.prices,
-              fullText: result.fullText,
-              bestEnhancement: result.enhancement,
-              storeType: result.storeType,
-              metadata: result.metadata,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        OCRErrorUtils.handleOCRProcessingError(
-          context,
-          e,
-          imagePath: widget.imagePath,
-          onRetry: _processWithOptimization,
-          onManualEntry: () => Navigator.pushNamed(context, '/manual_entry'),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Enhanced Preview'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.file(File(widget.imagePath), fit: BoxFit.contain),
-              ),
-            ),
-          ),
-          if (widget.performanceMetrics != null)
-            Container(
-              margin: EdgeInsets.all(16),
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'System Performance',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Text(
-                        'Memory: ${widget.performanceMetrics!.memoryUsageMB.toStringAsFixed(0)}MB',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      Text(
-                        'CPU: ${widget.performanceMetrics!.cpuUsagePercent.toStringAsFixed(0)}%',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          border: Border(top: BorderSide(color: Colors.grey[800]!, width: 1)),
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isProcessing
-                      ? null
-                      : () => Navigator.pop(context),
-                  icon: const Icon(Icons.camera_alt, color: Colors.white),
-                  label: const Text(
-                    'Retake',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: _isProcessing ? null : _processWithOptimization,
-                  icon: _isProcessing
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.auto_awesome),
-                  label: Text(
-                    _isProcessing ? 'Processing...' : 'Process with AI',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E3A8A),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

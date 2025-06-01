@@ -1,9 +1,7 @@
 // lib/screens/enhanced_ocr_processing_screen.dart
 import 'package:flutter/material.dart';
-import '../services/performance_optimized_ocr_manager.dart';
-import '../services/unified_ocr_service.dart';
+import '../services/consolidated_ocr_service.dart';
 import 'enhanced_ocr_results_screen.dart';
-import '../services/ocr_processor.dart';
 
 class EnhancedOCRProcessingScreen extends StatefulWidget {
   final String imagePath;
@@ -13,7 +11,7 @@ class EnhancedOCRProcessingScreen extends StatefulWidget {
   final OCRResult? result;
 
   const EnhancedOCRProcessingScreen({
-    super.key, 
+    super.key,
     required this.imagePath,
     this.isLongReceipt = false,
     this.sectionPaths,
@@ -21,7 +19,8 @@ class EnhancedOCRProcessingScreen extends StatefulWidget {
   });
 
   @override
-  _EnhancedOCRProcessingScreenState createState() => _EnhancedOCRProcessingScreenState();
+  _EnhancedOCRProcessingScreenState createState() =>
+      _EnhancedOCRProcessingScreenState();
 }
 
 class _EnhancedOCRProcessingScreenState
@@ -92,8 +91,7 @@ class _EnhancedOCRProcessingScreenState
     await _updateProgress('Starting advanced OCR analysis...', 0.1);
 
     try {
-      // Use UnifiedOCRService instead of OCRProcessor
-      final result = await UnifiedOCRService.processSingleReceipt(
+      final result = await ConsolidatedOCRService.instance.processSingleReceipt(
         widget.imagePath,
         priority: ProcessingPriority.normal,
       );
@@ -130,8 +128,7 @@ class _EnhancedOCRProcessingScreenState
       final progress = 0.1 + (0.7);
       await _updateProgress(_currentStep, progress);
 
-      // Use UnifiedOCRService for long receipt processing
-      final result = await UnifiedOCRService.processLongReceipt(
+      final result = await ConsolidatedOCRService.instance.processLongReceipt(
         widget.sectionPaths!,
         priority: ProcessingPriority.normal,
       );

@@ -3,9 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
-
-import 'ocr_processor.dart';
-import 'unified_ocr_service.dart';
+import 'package:jamaica_price_directory/services/consolidated_ocr_service.dart';
 
 class OCRPerformanceManager {
   static const int maxConcurrentProcessing = 2;
@@ -34,7 +32,7 @@ class OCRPerformanceManager {
       final optimizedPath = await _optimizeImageForOCR(imagePath);
       
       // Process with enhanced OCR
-      final result = await UnifiedOCRService.processSingleReceipt(
+      final result = await ConsolidatedOCRService.instance.processSingleReceipt(
         optimizedPath ?? imagePath
       );
 

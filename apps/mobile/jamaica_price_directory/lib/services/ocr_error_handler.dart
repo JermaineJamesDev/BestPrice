@@ -5,42 +5,31 @@ import 'package:camera/camera.dart';
 import 'dart:io';
 import 'dart:async';
 
-//  OCR Error Types
 enum OCRErrorType {
-  // Image-related errors
   imageNotFound,
   imageCorrupted,
   imageTooLarge,
   imageTooSmall,
   imageFormatUnsupported,
-  
-  // OCR processing errors
   ocrTimeout,
   ocrServiceUnavailable,
   lowImageQuality,
   noTextDetected,
   processingFailed,
-  
-  // Hardware/permissions
   cameraPermissionDenied,
   cameraNotAvailable,
   cameraInitializationFailed,
-  
-  // System resources
   lowMemory,
   storageInsufficient,
   networkUnavailable,
-  
-  // Long receipt specific
   longReceiptSectionFailed,
   longReceiptMergeFailed,
   insufficientSections,
-  
-  // Generic
+  inputImageConverterError, // New error type for ML Kit conversion issues
+  mlKitInitializationError, // New error type for ML Kit initialization issues
   unknown,
 }
 
-// Error Context for better debugging
 class OCRErrorContext {
   final String operation;
   final String? imagePath;
@@ -67,39 +56,29 @@ class OCRErrorContext {
   }
 }
 
-//  OCR Error Handler
 class OCRErrorHandler {
   static const Map<OCRErrorType, String> _errorMessages = {
-    // Image errors
     OCRErrorType.imageNotFound: 'Image file not found. Please try taking a new photo.',
     OCRErrorType.imageCorrupted: 'Image file is corrupted. Please capture a new image.',
     OCRErrorType.imageTooLarge: 'Image file is too large. Please try with lower resolution.',
     OCRErrorType.imageTooSmall: 'Image is too small or has insufficient detail. Please capture a closer image.',
     OCRErrorType.imageFormatUnsupported: 'Image format not supported. Please use JPEG or PNG.',
-    
-    // OCR processing errors
+    OCRErrorType.inputImageConverterError: 'Image format incompatible with text recognition. Please try capturing a new photo.',
+    OCRErrorType.mlKitInitializationError: 'Text recognition service failed to initialize. Please restart the app.',
     OCRErrorType.ocrTimeout: 'Text recognition timed out. Please try with better lighting or clearer image.',
     OCRErrorType.ocrServiceUnavailable: 'Text recognition service temporarily unavailable.',
     OCRErrorType.lowImageQuality: 'Image quality too low for accurate text recognition. Please improve lighting and focus.',
     OCRErrorType.noTextDetected: 'No text detected in image. Please ensure the receipt is clearly visible.',
     OCRErrorType.processingFailed: 'Processing failed. Please try again with a different angle or lighting.',
-    
-    // Hardware/permissions
     OCRErrorType.cameraPermissionDenied: 'Camera permission required. Please enable in Settings.',
     OCRErrorType.cameraNotAvailable: 'Camera not available on this device.',
     OCRErrorType.cameraInitializationFailed: 'Failed to initialize camera. Please try again.',
-    
-    // System resources
     OCRErrorType.lowMemory: 'Insufficient memory to process image. Please close other apps and try again.',
     OCRErrorType.storageInsufficient: 'Insufficient storage space. Please free up space and try again.',
     OCRErrorType.networkUnavailable: 'Network connection required for enhanced processing.',
-    
-    // Long receipt specific
     OCRErrorType.longReceiptSectionFailed: 'Failed to process receipt section. Please try capturing individual sections.',
     OCRErrorType.longReceiptMergeFailed: 'Failed to merge receipt sections. Please try standard capture mode.',
     OCRErrorType.insufficientSections: 'Insufficient sections captured. Please capture more sections for better results.',
-    
-    // Generic
     OCRErrorType.unknown: 'An unexpected error occurred. Please try again.',
   };
 
@@ -108,6 +87,9 @@ class OCRErrorHandler {
     OCRErrorType.imageCorrupted: ['Retake Photo', 'Manual Entry'],
     OCRErrorType.imageTooLarge: ['Retake with Lower Quality', 'Manual Entry'],
     OCRErrorType.imageTooSmall: ['Retake Closer', 'Use Long Receipt Mode'],
+    OCRErrorType.imageFormatUnsupported: ['Retake Photo', 'Manual Entry'],
+    OCRErrorType.inputImageConverterError: ['Retake Photo', 'Try Different Angle', 'Manual Entry'],
+    OCRErrorType.mlKitInitializationError: ['Restart App', 'Manual Entry'],
     OCRErrorType.lowImageQuality: ['Improve Lighting', 'Retake Photo', 'Manual Entry'],
     OCRErrorType.noTextDetected: ['Retake with Better Angle', 'Manual Entry'],
     OCRErrorType.cameraPermissionDenied: ['Open Settings', 'Manual Entry'],
@@ -125,57 +107,83 @@ class OCRErrorHandler {
     OCRErrorType.lowMemory,
     OCRErrorType.networkUnavailable,
     OCRErrorType.longReceiptSectionFailed,
+    OCRErrorType.inputImageConverterError, // This can be retryable with different image
   };
 
   static const Set<OCRErrorType> _criticalErrors = {
     OCRErrorType.cameraPermissionDenied,
     OCRErrorType.cameraNotAvailable,
     OCRErrorType.storageInsufficient,
+    OCRErrorType.mlKitInitializationError,
   };
 
   static OCRErrorType categorizeError(dynamic error, {OCRErrorContext? context}) {
     if (error is OCRException) {
       return _categorizeOCRException(error);
     }
-    
+
     if (error is PlatformException) {
       return _categorizePlatformException(error);
     }
-    
+
     if (error is CameraException) {
       return _categorizeCameraException(error);
     }
-    
+
     if (error is FileSystemException) {
       return _categorizeFileSystemException(error);
     }
-    
+
     if (error is TimeoutException) {
       return OCRErrorType.ocrTimeout;
     }
-    
+
+    // Check for string-based error patterns
     final errorString = error.toString().toLowerCase();
-    
-    if (errorString.contains('memory') || errorString.contains('heap')) {
+
+    // Check for ML Kit specific errors
+    if (errorString.contains('inputimageconvertererror') || 
+        errorString.contains('imageformat is not supported')) {
+      return OCRErrorType.inputImageConverterError;
+    }
+
+    if (errorString.contains('ml kit') && errorString.contains('initialization')) {
+      return OCRErrorType.mlKitInitializationError;
+    }
+
+    // Check for common error patterns
+    if (errorString.contains('memory') || errorString.contains('heap') || errorString.contains('oom')) {
       return OCRErrorType.lowMemory;
     }
-    
+
     if (errorString.contains('network') || errorString.contains('connection')) {
       return OCRErrorType.networkUnavailable;
     }
-    
-    if (errorString.contains('corrupted') || errorString.contains('invalid')) {
+
+    if (errorString.contains('corrupted') || errorString.contains('invalid') || errorString.contains('decode')) {
       return OCRErrorType.imageCorrupted;
     }
-    
+
     if (errorString.contains('timeout')) {
       return OCRErrorType.ocrTimeout;
     }
-    
+
     if (errorString.contains('no text') || errorString.contains('empty')) {
       return OCRErrorType.noTextDetected;
     }
-    
+
+    if (errorString.contains('file not found') || errorString.contains('not found')) {
+      return OCRErrorType.imageNotFound;
+    }
+
+    if (errorString.contains('too large') || errorString.contains('size exceeded')) {
+      return OCRErrorType.imageTooLarge;
+    }
+
+    if (errorString.contains('format') && (errorString.contains('unsupported') || errorString.contains('invalid'))) {
+      return OCRErrorType.imageFormatUnsupported;
+    }
+
     return OCRErrorType.unknown;
   }
 
@@ -200,6 +208,10 @@ class OCRErrorHandler {
   }
 
   static OCRErrorType _categorizeOCRException(OCRException error) {
+    if (error.type != null) {
+      return error.type!;
+    }
+
     final message = error.message.toLowerCase();
     
     if (message.contains('not found')) return OCRErrorType.imageNotFound;
@@ -208,12 +220,21 @@ class OCRErrorHandler {
     if (message.contains('too small')) return OCRErrorType.imageTooSmall;
     if (message.contains('timeout')) return OCRErrorType.ocrTimeout;
     if (message.contains('no text')) return OCRErrorType.noTextDetected;
+    if (message.contains('format')) return OCRErrorType.imageFormatUnsupported;
     
     return OCRErrorType.processingFailed;
   }
 
   static OCRErrorType _categorizePlatformException(PlatformException error) {
+    // Handle ML Kit specific errors
     switch (error.code) {
+      case 'InputImageConverterError':
+        return OCRErrorType.inputImageConverterError;
+      case 'MlKitException':
+        if (error.message?.toLowerCase().contains('initialization') ?? false) {
+          return OCRErrorType.mlKitInitializationError;
+        }
+        return OCRErrorType.processingFailed;
       case 'camera_access_denied':
       case 'permission_denied':
         return OCRErrorType.cameraPermissionDenied;
@@ -221,7 +242,17 @@ class OCRErrorHandler {
         return OCRErrorType.cameraNotAvailable;
       case 'out_of_memory':
         return OCRErrorType.lowMemory;
+      case 'format_not_supported':
+        return OCRErrorType.imageFormatUnsupported;
       default:
+        // Check error message for more specific categorization
+        final message = error.message?.toLowerCase() ?? '';
+        if (message.contains('imageformat is not supported')) {
+          return OCRErrorType.inputImageConverterError;
+        }
+        if (message.contains('ml kit') || message.contains('text recognition')) {
+          return OCRErrorType.processingFailed;
+        }
         return OCRErrorType.unknown;
     }
   }
@@ -237,6 +268,8 @@ class OCRErrorHandler {
       case 'CameraNotInitialized':
       case 'CameraAccessFailed':
         return OCRErrorType.cameraInitializationFailed;
+      case 'ImageCaptureException':
+        return OCRErrorType.processingFailed;
       default:
         return OCRErrorType.unknown;
     }
@@ -248,15 +281,16 @@ class OCRErrorHandler {
     if (message.contains('no space') || message.contains('disk full')) {
       return OCRErrorType.storageInsufficient;
     }
-    
     if (message.contains('not found')) {
       return OCRErrorType.imageNotFound;
+    }
+    if (message.contains('permission')) {
+      return OCRErrorType.storageInsufficient; // Treat as storage issue
     }
     
     return OCRErrorType.unknown;
   }
 
-  // Error logging for analytics
   static void logError(
     dynamic error, {
     OCRErrorContext? context,
@@ -273,13 +307,16 @@ class OCRErrorHandler {
         debugPrint('   Stack: $stackTrace');
       }
     }
-    
-    // In production, send to analytics service
-    // Analytics.logError(errorType, error, context, stackTrace);
+
+    // Additional logging for specific error types
+    if (errorType == OCRErrorType.inputImageConverterError) {
+      debugPrint('🔍 InputImageConverter Error Details:');
+      debugPrint('   This typically indicates an image format mismatch');
+      debugPrint('   Check image encoding and ML Kit InputImage parameters');
+    }
   }
 }
 
-//  Error Recovery System
 class OCRErrorRecovery {
   static const int maxRetryAttempts = 3;
   static const Duration baseRetryDelay = Duration(seconds: 2);
@@ -307,7 +344,6 @@ class OCRErrorRecovery {
         attempt++;
         lastError = error;
 
-        // Log error
         OCRErrorHandler.logError(
           error,
           context: context,
@@ -319,7 +355,7 @@ class OCRErrorRecovery {
         }
 
         final errorType = OCRErrorHandler.categorizeError(error, context: context);
-        
+
         // Don't retry critical errors
         if (OCRErrorHandler.isCritical(error, context: context)) {
           break;
@@ -334,7 +370,7 @@ class OCRErrorRecovery {
           onRetry(attempt);
         }
 
-        // Apply recovery strategy
+        // Apply recovery strategy before retrying
         await _applyRecoveryStrategy(error, errorType, attempt);
         
         // Progressive delay
@@ -359,13 +395,22 @@ class OCRErrorRecovery {
         await _resetCameraState();
         break;
         
+      case OCRErrorType.inputImageConverterError:
+        debugPrint('🔄 Image converter error - attempt $attempt will use different processing method');
+        await Future.delayed(Duration(milliseconds: 500));
+        break;
+        
       case OCRErrorType.ocrTimeout:
-        // Increase timeout for next attempt
         debugPrint('🔄 Increasing timeout for attempt $attempt');
         break;
         
       case OCRErrorType.networkUnavailable:
         await _waitForNetwork();
+        break;
+        
+      case OCRErrorType.mlKitInitializationError:
+        debugPrint('🔄 ML Kit initialization error - waiting before retry');
+        await Future.delayed(Duration(seconds: 2));
         break;
         
       default:
@@ -376,10 +421,10 @@ class OCRErrorRecovery {
 
   static Future<void> _forceGarbageCollection() async {
     debugPrint('🧹 Forcing garbage collection...');
-    
-    // Create memory pressure to trigger GC
     final List<List<int>> memoryPressure = [];
+    
     try {
+      // Create temporary memory pressure to trigger GC
       for (int i = 0; i < 10; i++) {
         memoryPressure.add(List.filled(100000, i));
       }
@@ -403,7 +448,6 @@ class OCRErrorRecovery {
   }
 }
 
-// Error UI Components
 class OCRErrorDialog extends StatelessWidget {
   final dynamic error;
   final OCRErrorContext? context;
@@ -444,6 +488,28 @@ class OCRErrorDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(message),
+          if (errorType == OCRErrorType.inputImageConverterError) ...[
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.blue, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Try capturing the image with better lighting or from a different angle.',
+                      style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (kDebugMode) ...[
             SizedBox(height: 12),
             Container(
@@ -492,7 +558,7 @@ class OCRErrorSnackBar {
   }) {
     final message = OCRErrorHandler.getErrorMessage(error, context: errorContext);
     final isRetryable = OCRErrorHandler.isRetryable(error, context: errorContext);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -516,7 +582,6 @@ class OCRErrorSnackBar {
   }
 }
 
-// Error Boundary Widget
 class OCRErrorBoundary extends StatefulWidget {
   final Widget child;
   final Widget Function(BuildContext, dynamic, StackTrace?)? errorBuilder;
@@ -543,10 +608,9 @@ class _OCRErrorBoundaryState extends State<OCRErrorBoundary> {
       if (widget.errorBuilder != null) {
         return widget.errorBuilder!(context, _error, _stackTrace);
       }
-      
       return _buildDefaultErrorWidget();
     }
-    
+
     return widget.child;
   }
 
@@ -603,11 +667,11 @@ class _OCRErrorBoundaryState extends State<OCRErrorBoundary> {
       _error = error;
       _stackTrace = stackTrace;
     });
-    
+
     if (widget.onError != null) {
       widget.onError!(error, stackTrace);
     }
-    
+
     OCRErrorHandler.logError(
       error,
       stackTrace: stackTrace,
@@ -615,7 +679,7 @@ class _OCRErrorBoundaryState extends State<OCRErrorBoundary> {
   }
 }
 
-// Specific OCR Exception Class
+// Exception classes
 class OCRException implements Exception {
   final String message;
   final OCRErrorType? type;
@@ -631,7 +695,7 @@ class OCRException implements Exception {
   String toString() => 'OCRException: $message';
 }
 
-// Extension to add error handling to Future operations
+// Extensions for error handling
 extension FutureErrorHandling<T> on Future<T> {
   Future<T?> handleOCRErrors({
     OCRErrorContext? context,
@@ -646,17 +710,17 @@ extension FutureErrorHandling<T> on Future<T> {
         context: context,
         stackTrace: stackTrace,
       );
-      
+
       if (showSnackBar && snackBarContext != null) {
         OCRErrorSnackBar.show(snackBarContext, error, errorContext: context);
       }
-      
+
       return null;
     }
   }
 }
 
-// Utility functions for common error scenarios
+// Utility class for common error handling scenarios
 class OCRErrorUtils {
   static Future<void> handleCameraError(
     BuildContext context,
@@ -665,7 +729,7 @@ class OCRErrorUtils {
     VoidCallback? onManualEntry,
   }) async {
     final errorType = OCRErrorHandler.categorizeError(error);
-    
+
     if (errorType == OCRErrorType.cameraPermissionDenied) {
       showDialog(
         context: context,
@@ -680,8 +744,7 @@ class OCRErrorUtils {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                // Open app settings
-                // In production, use package:permission_handler
+                // Could open app settings here
               },
               child: Text('Open Settings'),
             ),
@@ -723,6 +786,21 @@ class OCRErrorUtils {
         onManualEntry: onManualEntry,
         onDismiss: () => Navigator.pop(ctx),
       ),
+    );
+  }
+
+  static void showProcessingError(
+    BuildContext context,
+    dynamic error, {
+    VoidCallback? onRetry,
+  }) {
+    final isInputConverterError = OCRErrorHandler.categorizeError(error) == OCRErrorType.inputImageConverterError;
+    
+    OCRErrorSnackBar.show(
+      context,
+      error,
+      onRetry: onRetry,
+      actionLabel: isInputConverterError ? 'Try Again' : 'Retry',
     );
   }
 }

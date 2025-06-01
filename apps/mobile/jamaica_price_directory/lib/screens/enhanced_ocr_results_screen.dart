@@ -1,6 +1,6 @@
 // lib/screens/enhanced_ocr_results_screen.dart
 import 'package:flutter/material.dart';
-import '../services/ocr_processor.dart';
+import '../services/consolidated_ocr_service.dart';
 
 class EnhancedOCRResultsScreen extends StatefulWidget {
   final String imagePath;

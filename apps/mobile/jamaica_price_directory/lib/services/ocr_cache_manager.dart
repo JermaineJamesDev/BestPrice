@@ -5,7 +5,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
-import 'ocr_processor.dart';
+
+import 'consolidated_ocr_service.dart';
 
 // Cache Manager Interface for DI
 abstract class ICacheManager {

@@ -11,8 +11,6 @@ import 'screens/profile_screen.dart';
 import 'screens/enhanced_camera_screen.dart';
 import 'app_navigation_shell.dart';
 import 'services/consolidated_ocr_service.dart';
-import 'services/performance_optimized_ocr_manager.dart';
-import 'services/unified_ocr_service.dart';
 
 // This is the entry point of our Flutter app
 void main() async {

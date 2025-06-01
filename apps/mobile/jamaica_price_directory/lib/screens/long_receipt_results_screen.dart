@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
-import '../services/ocr_processor.dart';
+
+import '../services/consolidated_ocr_service.dart';
 
 class LongReceiptResultsScreen extends StatefulWidget {
   final List<ReceiptSection> sections;

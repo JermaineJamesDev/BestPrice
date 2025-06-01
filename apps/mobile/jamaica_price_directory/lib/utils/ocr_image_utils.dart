@@ -110,7 +110,7 @@ class OCRImageUtils {
     for (int y = edges.height ~/ 4; y < (3 * edges.height) ~/ 4; y += 10) {
       final linePixels = <int>[];
       for (int x = 0; x < edges.width; x++) {
-        linePixels.add(edges.getPixel(x, y).r);
+        linePixels.add(edges.getPixel(x, y).r.toInt());
       }
       
       // Find dominant angle for this line
@@ -336,7 +336,7 @@ class OCRImageUtils {
   static img.Image _smartDenoise(img.Image image) {
     try {
       // Light gaussian blur to reduce noise without losing text clarity
-      return img.gaussianBlur(image, radius: 0.5);
+      return img.gaussianBlur(image, radius: 1);
     } catch (e) {
       debugPrint('Smart denoising failed: $e');
       return image;
@@ -489,9 +489,9 @@ class OCRImageUtils {
         for (int x = 0; x < width; x++) {
           final pixel = image.getPixel(x, y);
           
-          final newR = gammaLUT[pixel.r];
-          final newG = gammaLUT[pixel.g];
-          final newB = gammaLUT[pixel.b];
+          final newR = gammaLUT[pixel.r.toInt()];
+          final newG = gammaLUT[pixel.g.toInt()];
+          final newB = gammaLUT[pixel.b.toInt()];
           
           corrected.setPixel(x, y, img.ColorRgb8(newR, newG, newB));
         }
@@ -516,7 +516,7 @@ class OCRImageUtils {
       final histogram = List<int>.filled(256, 0);
       for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-          histogram[gray.getPixel(x, y).r]++;
+          histogram[gray.getPixel(x, y).r.toInt()]++;
         }
       }
       
@@ -555,7 +555,7 @@ class OCRImageUtils {
   /// Apply unsharp mask for enhanced sharpening
   static img.Image unsharpMask(img.Image image, {double amount = 1.5, double radius = 1.0, double threshold = 0}) {
     try {
-      final blurred = img.gaussianBlur(image, radius: radius);
+      final blurred = img.gaussianBlur(image, radius: radius.toInt());
       final width = image.width;
       final height = image.height;
       final sharpened = img.Image.from(image);
