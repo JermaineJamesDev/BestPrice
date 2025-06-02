@@ -14,7 +14,8 @@ class LongReceiptResultsScreen extends StatefulWidget {
   });
 
   @override
-  _LongReceiptResultsScreenState createState() => _LongReceiptResultsScreenState();
+  _LongReceiptResultsScreenState createState() =>
+      _LongReceiptResultsScreenState();
 }
 
 class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
@@ -23,14 +24,33 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
   String? _selectedParish;
 
   final List<String> _stores = [
-    'Hi-Lo', 'MegaMart', 'SuperPlus', 'PriceSmart', 'Shoppers Fair',
-    'Progressive', 'Loshusan', 'Fontana', 'General Food', 'Other'
+    'Hi-Lo',
+    'MegaMart',
+    'SuperPlus',
+    'PriceSmart',
+    'Shoppers Fair',
+    'Progressive',
+    'Loshusan',
+    'Fontana',
+    'General Food',
+    'Other',
   ];
 
   final List<String> _parishes = [
-    'Kingston', 'St. Andrew', 'St. Thomas', 'Portland', 'St. Mary',
-    'St. Ann', 'Trelawny', 'St. James', 'Hanover', 'Westmoreland',
-    'St. Elizabeth', 'Manchester', 'Clarendon', 'St. Catherine',
+    'Kingston',
+    'St. Andrew',
+    'St. Thomas',
+    'Portland',
+    'St. Mary',
+    'St. Ann',
+    'Trelawny',
+    'St. James',
+    'Hanover',
+    'Westmoreland',
+    'St. Elizabeth',
+    'Manchester',
+    'Clarendon',
+    'St. Catherine',
   ];
 
   @override
@@ -65,9 +85,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
         children: [
           _buildStoreSelection(),
           _buildReceiptSummary(),
-          Expanded(
-            child: _buildPricesList(),
-          ),
+          Expanded(child: _buildPricesList()),
         ],
       ),
       bottomNavigationBar: _buildSubmitButton(),
@@ -79,9 +97,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!, width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[300]!, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,42 +120,63 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedStore,
-                  decoration: InputDecoration(
-                    labelText: 'Store Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    prefixIcon: Icon(Icons.store),
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedStore,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Store Name',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      prefixIcon: Icon(Icons.store),
+                      isCollapsed: false,
+                    ),
+                    items: _stores.map((store) {
+                      return DropdownMenuItem(value: store, child: Text(store));
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedStore = value;
+                      });
+                    },
                   ),
-                  items: _stores.map((store) {
-                    return DropdownMenuItem(value: store, child: Text(store));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedStore = value;
-                    });
-                  },
                 ),
               ),
-              SizedBox(width: 12),
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedParish,
-                  decoration: InputDecoration(
-                    labelText: 'Parish',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    prefixIcon: Icon(Icons.location_on),
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedParish,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Parish',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      prefixIcon: Icon(Icons.location_on),
+                      isCollapsed: false,
+                    ),
+                    items: _parishes.map((parish) {
+                      return DropdownMenuItem(value: parish, child: Text(parish));
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedParish = value;
+                      });
+                    },
                   ),
-                  items: _parishes.map((parish) {
-                    return DropdownMenuItem(value: parish, child: Text(parish));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedParish = value;
-                    });
-                  },
                 ),
               ),
             ],
@@ -170,11 +207,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(30),
                 ),
-                child: Icon(
-                  Icons.receipt_long,
-                  color: Colors.white,
-                  size: 30,
-                ),
+                child: Icon(Icons.receipt_long, color: Colors.white, size: 30),
               ),
               SizedBox(width: 16),
               Expanded(
@@ -265,10 +298,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
         ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.9),
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.9)),
           textAlign: TextAlign.center,
         ),
       ],
@@ -294,18 +324,11 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.receipt_long,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.receipt_long, size: 80, color: Colors.grey[400]),
           SizedBox(height: 16),
           Text(
             'No prices detected',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           SizedBox(height: 8),
           Text(
@@ -316,9 +339,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
           SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF1E3A8A),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF1E3A8A)),
             child: Text('Retake Receipt'),
           ),
         ],
@@ -328,7 +349,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
 
   Widget _buildEnhancedPriceCard(int index) {
     ExtractedPrice price = widget.mergedResult.prices[index];
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       child: Card(
@@ -360,7 +381,9 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          price.itemName.isEmpty ? 'Item ${index + 1}' : price.itemName,
+                          price.itemName.isEmpty
+                              ? 'Item ${index + 1}'
+                              : price.itemName,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -368,9 +391,14 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                         ),
                         SizedBox(height: 4),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: _getCategoryColor(price.category).withOpacity(0.1),
+                            color: _getCategoryColor(
+                              price.category,
+                            ).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -409,10 +437,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                       ),
                       child: Text(
                         price.unit,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[700],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                       ),
                     ),
                   ],
@@ -439,7 +464,11 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.format_quote, size: 16, color: Colors.grey[600]),
+                        Icon(
+                          Icons.format_quote,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Original Text:',
@@ -474,7 +503,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
     Color color;
     String text;
     IconData icon;
-    
+
     if (confidence >= 0.9) {
       color = Colors.green;
       text = 'Excellent';
@@ -517,10 +546,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
               ),
               Text(
                 '${(confidence * 100).toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: color,
-                ),
+                style: TextStyle(fontSize: 10, color: color),
               ),
             ],
           ),
@@ -576,7 +602,8 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => _buildEditPriceModal(widget.mergedResult.prices[index], index),
+      builder: (ctx) =>
+          _buildEditPriceModal(widget.mergedResult.prices[index], index),
     );
   }
 
@@ -586,8 +613,24 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
     String selectedCategory = price.category;
     String selectedUnit = price.unit;
 
-    final categories = ['Groceries', 'Meat', 'Beverages', 'Dairy', 'Produce', 'Household', 'Health', 'Other'];
-    final units = ['each', 'per lb', 'per kg', 'per gallon', 'per liter', 'per pack'];
+    final categories = [
+      'Groceries',
+      'Meat',
+      'Beverages',
+      'Dairy',
+      'Produce',
+      'Household',
+      'Health',
+      'Other',
+    ];
+    final units = [
+      'each',
+      'per lb',
+      'per kg',
+      'per gallon',
+      'per liter',
+      'per pack',
+    ];
 
     return StatefulBuilder(
       builder: (context, setModalState) {
@@ -619,7 +662,9 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Item Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     prefixIcon: Icon(Icons.shopping_basket),
                   ),
                 ),
@@ -629,7 +674,9 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                   decoration: InputDecoration(
                     labelText: 'Price (JMD)',
                     prefixText: 'J\$',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     prefixIcon: Icon(Icons.attach_money),
                   ),
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
@@ -642,7 +689,9 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                         value: selectedCategory,
                         decoration: InputDecoration(
                           labelText: 'Category',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           prefixIcon: Icon(Icons.category),
                         ),
                         items: categories.map((cat) {
@@ -650,7 +699,11 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                             value: cat,
                             child: Row(
                               children: [
-                                Icon(_getCategoryIcon(cat), size: 16, color: _getCategoryColor(cat)),
+                                Icon(
+                                  _getCategoryIcon(cat),
+                                  size: 16,
+                                  color: _getCategoryColor(cat),
+                                ),
                                 SizedBox(width: 8),
                                 Text(cat),
                               ],
@@ -670,11 +723,16 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                         value: selectedUnit,
                         decoration: InputDecoration(
                           labelText: 'Unit',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           prefixIcon: Icon(Icons.straighten),
                         ),
                         items: units.map((unit) {
-                          return DropdownMenuItem(value: unit, child: Text(unit));
+                          return DropdownMenuItem(
+                            value: unit,
+                            child: Text(unit),
+                          );
                         }).toList(),
                         onChanged: (value) {
                           setModalState(() {
@@ -698,12 +756,15 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          if (nameController.text.isNotEmpty && priceController.text.isNotEmpty) {
+                          if (nameController.text.isNotEmpty &&
+                              priceController.text.isNotEmpty) {
                             // Update the price in the list
                             // In a real implementation, you'd update the actual data
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Price updated successfully')),
+                              SnackBar(
+                                content: Text('Price updated successfully'),
+                              ),
                             );
                           }
                         },
@@ -776,7 +837,10 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                             ),
                             Text(
                               'Captured: ${_formatTimestamp(section.timestamp)}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
                             ),
                           ],
                         ),
@@ -814,7 +878,9 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
           height: 400,
           child: SingleChildScrollView(
             child: SelectableText(
-              widget.mergedResult.fullText.isEmpty ? 'No text extracted' : widget.mergedResult.fullText,
+              widget.mergedResult.fullText.isEmpty
+                  ? 'No text extracted'
+                  : widget.mergedResult.fullText,
               style: TextStyle(fontFamily: 'monospace'),
             ),
           ),
@@ -832,7 +898,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inMinutes < 1) {
       return 'Just now';
     } else if (difference.inHours < 1) {
@@ -846,16 +912,16 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
 
   Future<void> _submitPrices() async {
     if (widget.mergedResult.prices.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No prices to submit')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No prices to submit')));
       return;
     }
 
     if (_selectedStore == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select a store')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please select a store')));
       return;
     }
 
@@ -866,7 +932,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
     try {
       // Simulate submission
       await Future.delayed(Duration(seconds: 2));
-      
+
       _showSuccessDialog();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -898,7 +964,9 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${widget.mergedResult.prices.length} prices submitted successfully!'),
+            Text(
+              '${widget.mergedResult.prices.length} prices submitted successfully!',
+            ),
             SizedBox(height: 8),
             Text(
               'Thank you for contributing to the Jamaica Price Directory.',
@@ -944,9 +1012,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey[300]!, width: 1),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -958,7 +1024,10 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
       ),
       child: SafeArea(
         child: ElevatedButton(
-          onPressed: _isSubmitting || widget.mergedResult.prices.isEmpty || _selectedStore == null
+          onPressed:
+              _isSubmitting ||
+                  widget.mergedResult.prices.isEmpty ||
+                  _selectedStore == null
               ? null
               : _submitPrices,
           style: ElevatedButton.styleFrom(
@@ -982,7 +1051,10 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                       ),
                     ),
                     SizedBox(width: 12),
-                    Text('Submitting Long Receipt...', style: TextStyle(fontSize: 16)),
+                    Text(
+                      'Submitting Long Receipt...',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ],
                 )
               : Row(

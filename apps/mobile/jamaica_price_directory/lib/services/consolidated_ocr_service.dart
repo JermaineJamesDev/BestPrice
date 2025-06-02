@@ -136,7 +136,8 @@ class ConsolidatedOCRService {
     String? tempProcessedPath;
 
     try {
-      // Validate original image file
+      debugPrint('🚀 Processing image: ${imagePath.split('/').last}');
+
       final originalFile = File(imagePath);
       if (!await originalFile.exists()) {
         throw OCRException(
@@ -146,6 +147,10 @@ class ConsolidatedOCRService {
       }
 
       final fileSize = await originalFile.length();
+      debugPrint(
+        '📊 File size: ${(fileSize / (1024 * 1024)).toStringAsFixed(2)}MB',
+      );
+
       if (fileSize > maxFileSize) {
         throw OCRException(
           'Image file too large: ${fileSize / (1024 * 1024)}MB',
@@ -157,9 +162,60 @@ class ConsolidatedOCRService {
         throw CancellationException();
       }
 
-      // Load and validate image
+      // Try to process directly first (fastest approach)
+      try {
+        debugPrint('🔄 Attempting direct OCR processing...');
+        final recognizedText = await _performOCRFromFile(imagePath);
+
+        if (recognizedText.text.isEmpty) {
+          debugPrint('⚠️ No text detected, will try with preprocessing');
+          throw Exception('No text detected');
+        }
+
+        if (cancellationToken?.isCancelled == true) {
+          throw CancellationException();
+        }
+
+        final storeType = _detectStoreType(recognizedText.text);
+        final extractedPrices = _extractPrices(recognizedText, storeType);
+        final enhancedPrices = _enhancePricesWithNLP(
+          extractedPrices,
+          recognizedText.text,
+          storeType,
+        );
+        final confidence = _calculateOverallConfidence(
+          enhancedPrices,
+          recognizedText,
+        );
+
+        debugPrint(
+          '✅ Direct processing successful: ${enhancedPrices.length} prices found',
+        );
+
+        return OCRResult(
+          fullText: recognizedText.text,
+          prices: enhancedPrices,
+          confidence: confidence,
+          enhancement: EnhancementType.original,
+          storeType: storeType,
+          metadata: {
+            'processing_method': 'direct',
+            'processing_time': DateTime.now().millisecondsSinceEpoch,
+            'is_long_receipt': isLongReceipt,
+            'file_size_mb': fileSize / (1024 * 1024),
+          },
+        );
+      } catch (e) {
+        debugPrint('⚠️ Direct processing failed: $e');
+        // Continue with preprocessing approach
+      }
+
+      // If direct processing failed, try with preprocessing
+      debugPrint('🔄 Attempting processing with preprocessing...');
+
       final originalBytes = await originalFile.readAsBytes();
       final image = img.decodeImage(originalBytes);
+
       if (image == null) {
         throw OCRException(
           'Failed to decode image',
@@ -171,13 +227,12 @@ class ConsolidatedOCRService {
         throw CancellationException();
       }
 
-      // Preprocess image
-      final preprocessed = await _preprocessImage(image);
+      final preprocessed = await _preprocessImageSafely(image);
+
       if (cancellationToken?.isCancelled == true) {
         throw CancellationException();
       }
 
-      // Save preprocessed image to temporary file for ML Kit
       tempProcessedPath = await _saveImageToTempFile(preprocessed);
       if (tempProcessedPath == null) {
         throw OCRException(
@@ -190,20 +245,14 @@ class ConsolidatedOCRService {
         throw CancellationException();
       }
 
-      // Perform OCR using the file path (most reliable method for ML Kit)
       final recognizedText = await _performOCRFromFile(tempProcessedPath);
+
       if (cancellationToken?.isCancelled == true) {
         throw CancellationException();
       }
 
-      // Process results
       final storeType = _detectStoreType(recognizedText.text);
       final extractedPrices = _extractPrices(recognizedText, storeType);
-
-      if (cancellationToken?.isCancelled == true) {
-        throw CancellationException();
-      }
-
       final enhancedPrices = _enhancePricesWithNLP(
         extractedPrices,
         recognizedText.text,
@@ -214,6 +263,10 @@ class ConsolidatedOCRService {
         recognizedText,
       );
 
+      debugPrint(
+        '✅ Preprocessing method successful: ${enhancedPrices.length} prices found',
+      );
+
       return OCRResult(
         fullText: recognizedText.text,
         prices: enhancedPrices,
@@ -221,19 +274,19 @@ class ConsolidatedOCRService {
         enhancement: EnhancementType.hybrid,
         storeType: storeType,
         metadata: {
+          'processing_method': 'preprocessed',
           'processing_time': DateTime.now().millisecondsSinceEpoch,
           'is_long_receipt': isLongReceipt,
-          'original_price_count': extractedPrices.length,
-          'enhanced_price_count': enhancedPrices.length,
-          'store_detected': storeType,
-          'temp_file_used': true,
+          'original_size': '${image.width}x${image.height}',
+          'processed_size': '${preprocessed.width}x${preprocessed.height}',
+          'file_size_mb': fileSize / (1024 * 1024),
         },
       );
     } catch (e) {
-      debugPrint('ConsolidatedOCRService: Processing failed - $e');
+      debugPrint('❌ Image processing failed completely: $e');
       rethrow;
     } finally {
-      // Clean up temporary file
+      // Clean up temp file
       if (tempProcessedPath != null) {
         try {
           final tempFile = File(tempProcessedPath);
@@ -241,11 +294,13 @@ class ConsolidatedOCRService {
             await tempFile.delete();
           }
         } catch (e) {
-          debugPrint('Failed to clean up temp file: $e');
+          debugPrint('⚠️ Failed to clean up temp file: $e');
         }
       }
     }
   }
+
+  
 
   Future<BatchOCRResult> processImageList(
     List<String> imagePaths, {

@@ -17,8 +17,7 @@ class FilePickerService {
         type: FileType.custom,
         allowedExtensions: _allowedExtensions,
         allowMultiple: true,
-        withData: false, // We'll read files later to save memory
-        allowCompression: true,
+        withData: false,
       );
 
       if (result != null && result.files.isNotEmpty) {
