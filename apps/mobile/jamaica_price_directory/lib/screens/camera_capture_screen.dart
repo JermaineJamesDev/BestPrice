@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:jamaica_price_directory/screens/enhanced_photo_preview_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:async';
 
+import 'package:jamaica_price_directory/screens/enhanced_photo_preview_screen.dart';
 import '../services/consolidated_ocr_service.dart';
 import '../utils/camera_error_handler.dart';
 import '../services/ocr_error_handler.dart';
@@ -26,21 +26,22 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   bool _isFlashOn = false;
   bool _isCapturing = false;
   bool _isDisposed = false;
+
   String? _errorMessage;
   OCRErrorType? _currentErrorType;
   CancellationToken? _currentCancellationToken;
   SystemPerformanceMetrics? _currentMetrics;
-
   final bool _isPerformanceMonitoringEnabled = true;
+
   late AnimationController _errorAnimationController;
   late AnimationController _performanceIndicatorController;
   late Animation<double> _errorFadeAnimation;
   late Animation<double> _performanceScaleAnimation;
 
+  // ——— Frame‐skipping and throttling flags ———
   bool _isProcessingFrame = false;
   int _frameSkipCount = 0;
-  static const int _skipFrames = 10; // Process every 10th frame
-  StreamSubscription<CameraImage>? _imageStreamSubscription;
+  static const int _skipFrames = 10;
 
   @override
   void initState() {
@@ -55,9 +56,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _currentCancellationToken?.cancel();
+
+    // Stop image stream first, then dispose camera controller
     _stopImageStream().then((_) {
       _disposeCamera();
     });
+
     _errorAnimationController.dispose();
     _performanceIndicatorController.dispose();
     super.dispose();
@@ -65,11 +69,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   void _setupAnimations() {
     _errorAnimationController = AnimationController(
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+
     _performanceIndicatorController = AnimationController(
-      duration: Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..repeat(reverse: true);
 
@@ -159,10 +164,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         );
       }
 
-      _cameras =
-          await CameraErrorHandler.handleCameraOperation<
-            List<CameraDescription>
-          >(
+      _cameras = await CameraErrorHandler.handleCameraOperation<List<CameraDescription>>(
             () => availableCameras(),
             onError: (error) {
               throw OCRException(
@@ -183,14 +185,15 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       await _disposeCamera();
       if (_isDisposed) return;
 
+      // Use an optimized controller from our handler
       _cameraController = CameraErrorHandler.createOptimizedController(
         _cameras[_selectedCameraIndex],
       );
-
       await _cameraController!.initialize();
       await _cameraController!.setFlashMode(FlashMode.off);
 
-      await _startImageStream();
+      // Start the image stream (synchronous; no need to await)
+      _startImageStream();
 
       if (mounted && !_isDisposed) {
         setState(() {
@@ -224,36 +227,57 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     }
   }
 
-  Future<void> _startImageStream() async {
+  /// Begins streaming frames from the camera. Each incoming [CameraImage]
+  /// is passed to `_processCameraImage`. If we’re currently busy or skipping,
+  /// we simply return from the callback so that the plugin can discard that frame.
+  void _startImageStream() {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
 
+    _cameraController!.startImageStream(_processCameraImage);
+  }
+
+  /// Called on every frame. If we’re already busy (_isProcessingFrame == true),
+  /// or if this frame is being skipped, we just return immediately. Otherwise
+  /// we hand it off to the async handler.
+  void _processCameraImage(CameraImage image) {
+    // If we're already processing the previous frame, drop this one:
+    if (_isProcessingFrame) {
+      return; 
+    }
+
+    _frameSkipCount++;
+    // Only process one frame every `_skipFrames`.
+    if (_frameSkipCount % _skipFrames != 0) {
+      return;
+    }
+
+    _isProcessingFrame = true;
+    _handleCameraImage(image);
+  }
+
+  /// Async handler for a single frame. We deliberately do not await or do
+  /// any UI work here; we immediately mark `_isProcessingFrame = false`
+  /// once our async logic finishes, so the next frame can be handled.
+  Future<void> _handleCameraImage(CameraImage image) async {
     try {
-      await _cameraController!.startImageStream((CameraImage image) async {
-        if (_isProcessingFrame) return; // Skip if still processing
+      // TODO: Replace this with your actual OCR/analysis call. For example:
+      // final result = await ConsolidatedOCRService.instance
+      //     .performOCROnCameraImage(image, cancellationToken: _currentCancellationToken);
 
-        _frameSkipCount++;
-        if (_frameSkipCount % _skipFrames != 0) {
-          return; // Skip this frame
-        }
-
-        _isProcessingFrame = true;
-        try {
-          // Process the image here if needed
-          // For now, just release it immediately
-        } finally {
-          _isProcessingFrame = false;
-        }
-      });
+      // Simulate a small delay for demonstration (remove in production):
+      // await Future.delayed(Duration(milliseconds: 200));
     } catch (e) {
-      debugPrint('Error starting image stream: $e');
+      debugPrint('Error processing frame: $e');
+    } finally {
+      // Always free up our flag so the next frame can run:
+      _isProcessingFrame = false;
     }
   }
 
   Future<void> _stopImageStream() async {
-    if (_cameraController != null &&
-        _cameraController!.value.isStreamingImages) {
+    if (_cameraController != null && _cameraController!.value.isStreamingImages) {
       try {
         await _cameraController!.stopImageStream();
       } catch (e) {
@@ -270,7 +294,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         metadata: {'screen': 'camera_capture'},
       ),
     );
-
     final errorMessage = OCRErrorHandler.getErrorMessage(
       error,
       context: OCRErrorContext(
@@ -283,7 +306,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       _errorMessage = errorMessage;
       _currentErrorType = errorType;
     });
-
     _errorAnimationController.forward();
 
     if (OCRErrorHandler.isCritical(error)) {
@@ -306,7 +328,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
-            children: [
+            children: const [
               SizedBox(
                 width: 16,
                 height: 16,
@@ -316,7 +338,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 ),
               ),
               SizedBox(width: 12),
-              Text('Retrying camera initialization...'),
+              Text('Retrying camera initialization.'),
             ],
           ),
           duration: Duration(seconds: 2),
@@ -363,14 +385,13 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     setState(() {
       _isCapturing = true;
     });
-
     _currentCancellationToken = CancellationToken();
 
     try {
       await _updatePerformanceMetrics();
-
       final image = await OCRErrorRecovery.executeWithRecovery(
         () async {
+          // Small delay ensures any previous frames finish up
           await Future.delayed(const Duration(milliseconds: 100));
           return _cameraController!.takePicture();
         },
@@ -471,6 +492,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         );
         await _cameraController!.initialize();
         await _cameraController!.setFlashMode(FlashMode.off);
+        _startImageStream();
       },
       'camera_switch',
       onError: (error, attempt) {
@@ -491,10 +513,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   Future<void> _updatePerformanceMetrics() async {
     if (!_isPerformanceMonitoringEnabled) return;
-
     try {
-      _currentMetrics = await ConsolidatedOCRService.instance
-          .getSystemMetrics();
+      _currentMetrics =
+          await ConsolidatedOCRService.instance.getSystemMetrics();
     } catch (e) {
       debugPrint('Failed to update performance metrics: $e');
     }
@@ -549,30 +570,24 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     if (_isLoading) {
       return _buildLoadingState();
     }
-
     if (_errorMessage != null && _currentErrorType != null) {
       if (OCRErrorHandler.isCritical(_currentErrorType)) {
         return _buildCriticalErrorState();
       }
     }
-
     if (!_hasPermission) {
       return _buildPermissionState();
     }
-
     if (_isCameraInitialized) {
       return _buildCameraPreview();
     }
-
     return _buildLoadingState();
   }
 
   Widget _buildPerformanceIndicator() {
-    if (_currentMetrics == null) return SizedBox.shrink();
-
+    if (_currentMetrics == null) return const SizedBox.shrink();
     final metrics = _currentMetrics!;
     Color indicatorColor;
-
     if (metrics.memoryUsageMB > 400 || metrics.cpuUsagePercent > 80) {
       indicatorColor = Colors.red;
     } else if (metrics.memoryUsageMB > 200 || metrics.cpuUsagePercent > 60) {
@@ -589,7 +604,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           child: Container(
             width: 12,
             height: 12,
-            margin: EdgeInsets.only(right: 8),
+            margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               color: indicatorColor,
               shape: BoxShape.circle,
@@ -608,8 +623,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           opacity: _errorFadeAnimation.value,
           child: Container(
             width: double.infinity,
-            padding: EdgeInsets.all(16),
-            margin: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.red.withOpacity(0.9),
               borderRadius: BorderRadius.circular(8),
@@ -620,12 +635,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.error, color: Colors.white),
-                      SizedBox(width: 8),
+                      const Icon(Icons.error, color: Colors.white),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _errorMessage!,
-                          style: TextStyle(
+                          _errorMessage ?? '',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w500,
                           ),
@@ -633,22 +648,22 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                       ),
                     ],
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
                           onPressed: _clearError,
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.white),
+                            side: const BorderSide(color: Colors.white),
                           ),
-                          child: Text(
+                          child: const Text(
                             'Dismiss',
                             style: TextStyle(color: Colors.white),
                           ),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
@@ -659,7 +674,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.red,
                           ),
-                          child: Text('Retry'),
+                          child: const Text('Retry'),
                         ),
                       ),
                     ],
@@ -674,46 +689,27 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Widget _buildLoadingState() {
+    return const Center(
+      child: CircularProgressIndicator(color: Colors.white),
+    );
+  }
+
+  Widget _buildPermissionState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(color: Colors.white),
+          const Icon(Icons.camera_alt, size: 48, color: Colors.white70),
           const SizedBox(height: 16),
           const Text(
-            'Initializing enhanced camera...',
-            style: TextStyle(color: Colors.white, fontSize: 16),
+            'Camera permission required',
+            style: TextStyle(color: Colors.white70),
           ),
-          if (_currentMetrics != null) ...[
-            const SizedBox(height: 24),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'System Performance',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Memory: ${_currentMetrics!.memoryUsageMB.toStringAsFixed(0)}MB',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  Text(
-                    'CPU: ${_currentMetrics!.cpuUsagePercent.toStringAsFixed(0)}%',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _initializeWithErrorHandling,
+            child: const Text('Grant Permission'),
+          ),
         ],
       ),
     );
@@ -721,123 +717,36 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   Widget _buildCriticalErrorState() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 80, color: Colors.red),
-            const SizedBox(height: 16),
-            const Text(
-              'Critical Camera Error',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () =>
-                        Navigator.pushNamed(context, '/manual_entry'),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white),
-                    ),
-                    child: const Text(
-                      'Manual Entry',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _initializeWithErrorHandling,
-                    child: const Text('Retry'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPermissionState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.camera_alt, size: 80, color: Colors.white70),
-            const SizedBox(height: 16),
-            const Text(
-              'Camera Permission Required',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'To capture receipt images, please allow camera access.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () async {
-                final permission = await Permission.camera.request();
-                if (permission.isGranted) {
-                  _initializeWithErrorHandling();
-                } else if (permission.isPermanentlyDenied) {
-                  openAppSettings();
-                }
-              },
-              child: const Text('Allow Camera Access'),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage ?? 'Unknown error',
+            style: const TextStyle(color: Colors.redAccent),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _initializeWithErrorHandling,
+            child: const Text('Retry'),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCameraPreview() {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return const Center(
+        child: Text('Initializing camera...', style: TextStyle(color: Colors.white)),
+      );
+    }
     return Stack(
       children: [
-        Positioned.fill(child: CameraPreview(_cameraController!)),
+        CameraPreview(_cameraController!),
         _buildCameraOverlay(),
-        if (_isCapturing)
-          Positioned.fill(
-            child: Container(
-              color: Colors.white.withOpacity(0.7),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      'Capturing with performance optimization...',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -871,10 +780,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                       ),
                     ),
                     if (_currentMetrics != null) ...[
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         'Performance: ${_getPerformanceStatus()}',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
                   ],
@@ -911,7 +820,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   String _getPerformanceStatus() {
     if (_currentMetrics == null) return 'Unknown';
-
     final metrics = _currentMetrics!;
     if (metrics.memoryUsageMB > 400 || metrics.cpuUsagePercent > 80) {
       return 'Limited';
@@ -977,11 +885,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 }
 
-// Supporting Widgets
 class _TipWidget extends StatelessWidget {
   final IconData icon;
   final String text;
-
   const _TipWidget(this.icon, this.text);
 
   @override
@@ -990,7 +896,10 @@ class _TipWidget extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.white, size: 24),
         const SizedBox(height: 4),
-        Text(text, style: const TextStyle(color: Colors.white, fontSize: 12)),
+        Text(
+          text,
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
       ],
     );
   }
@@ -1008,13 +917,21 @@ class CameraOverlayPainter extends CustomPainter {
     final frameHeight = frameWidth * 1.5;
     final left = (size.width - frameWidth) / 2;
     final top = (size.height - frameHeight) / 2;
-
     const cornerLength = 30.0;
 
-    // Draw corner brackets
-    canvas.drawLine(Offset(left, top + cornerLength), Offset(left, top), paint);
-    canvas.drawLine(Offset(left, top), Offset(left + cornerLength, top), paint);
+    // Top-left corner
+    canvas.drawLine(
+      Offset(left, top + cornerLength),
+      Offset(left, top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(left, top),
+      Offset(left + cornerLength, top),
+      paint,
+    );
 
+    // Top-right corner
     canvas.drawLine(
       Offset(left + frameWidth - cornerLength, top),
       Offset(left + frameWidth, top),
@@ -1026,6 +943,7 @@ class CameraOverlayPainter extends CustomPainter {
       paint,
     );
 
+    // Bottom-left corner
     canvas.drawLine(
       Offset(left, top + frameHeight - cornerLength),
       Offset(left, top + frameHeight),
@@ -1037,6 +955,7 @@ class CameraOverlayPainter extends CustomPainter {
       paint,
     );
 
+    // Bottom-right corner
     canvas.drawLine(
       Offset(left + frameWidth - cornerLength, top + frameHeight),
       Offset(left + frameWidth, top + frameHeight),

@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'dart:io';
-import '../services/consolidated_ocr_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import 'package:jamaica_price_directory/screens/enhanced_photo_preview_screen.dart';
 import '../utils/camera_error_handler.dart';
-import 'long_receipt_results_screen.dart'; // NEW: Separate file
+import '../services/ocr_error_handler.dart';
+import '../services/consolidated_ocr_service.dart';
 
 class LongReceiptCaptureScreen extends StatefulWidget {
   const LongReceiptCaptureScreen({super.key});
@@ -14,323 +17,306 @@ class LongReceiptCaptureScreen extends StatefulWidget {
 }
 
 class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   CameraController? _cameraController;
   List<CameraDescription> _cameras = [];
   bool _isCameraInitialized = false;
+  bool _isLoading = true;
+  bool _hasPermission = false;
   bool _isCapturing = false;
-  final List<ReceiptSection> _capturedSections = [];
+  bool _isDisposed = false;
+
+  String? _errorMessage;
+  OCRErrorType? _currentErrorType;
+  CancellationToken? _currentCancellationToken;
+
+  /// Holds filepaths (or URIs) of each captured section
+  final List<String> _capturedSections = [];
   int _currentSection = 1;
-  bool _isProcessing = false;
-  String? _guideText;
-  int _currentProcessingSection = 0;
+
+  late AnimationController _errorAnimationController;
+  late Animation<double> _errorFadeAnimation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initializeCamera();
-    _updateGuideText();
+    _setupErrorAnimation();
+    _initializeWithErrorHandling();
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
-    CameraErrorHandler.safeDispose(_cameraController);
+    _currentCancellationToken?.cancel();
+
+    // Stop image stream (if any) and dispose controller
+    _disposeCamera();
+    _errorAnimationController.dispose();
     super.dispose();
   }
 
-  Future<void> _initializeCamera() async {
-    try {
-      final cameras = await availableCameras();
-      if (cameras.isNotEmpty && mounted) {
-        _cameras = cameras;
-        _cameraController = CameraErrorHandler.createOptimizedController(
-          cameras[0],
-        );
-        await _cameraController!.initialize();
-        if (mounted) {
-          setState(() {
-            _isCameraInitialized = true;
-          });
+  void _setupErrorAnimation() {
+    _errorAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _errorFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _errorAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isDisposed) return;
+
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+        _disposeCamera();
+        break;
+      case AppLifecycleState.resumed:
+        if (!_isLoading && !_isCameraInitialized) {
+          _initializeWithErrorHandling();
         }
-      }
-    } catch (e) {
-      debugPrint('Camera initialization failed: $e');
+        break;
+      default:
+        break;
     }
   }
 
-  void _updateGuideText() {
+  Future<void> _initializeWithErrorHandling() async {
+    await OCRErrorRecovery.executeWithRecovery(
+      () => _initializeCamera(),
+      'long_receipt_camera_init',
+      context: OCRErrorContext(
+        operation: 'long_receipt_camera_initialization',
+        metadata: {'screen': 'long_receipt_capture'},
+      ),
+      onError: (error, attempt) {
+        debugPrint('LongReceipt init error (attempt $attempt): $error');
+        _handleCameraError(error);
+      },
+      onRetry: (attempt) {
+        debugPrint('Retrying LongReceipt camera init (attempt $attempt)');
+      },
+      onSuccess: (_) {
+        _clearError();
+      },
+    );
+  }
+
+  Future<void> _initializeCamera() async {
+    if (_isDisposed) return;
+
     setState(() {
-      if (_currentSection == 1) {
-        _guideText =
-            "Capture the TOP section of your receipt\nMake sure all text is clearly visible";
-      } else if (_capturedSections.length < 5) {
-        _guideText =
-            "Capture section $_currentSection\nInclude some overlap with the previous section";
-      } else {
-        _guideText =
-            "Capture the BOTTOM section\nInclude the total and any remaining items";
-      }
+      _isLoading = true;
+      _errorMessage = null;
+      _currentErrorType = null;
     });
+
+    try {
+      // 1. Request camera permission
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        throw OCRException(
+          'Camera permission denied',
+          type: OCRErrorType.cameraPermissionDenied,
+        );
+      }
+      _hasPermission = true;
+
+      // 2. Check availability and list cameras
+      if (!await CameraErrorHandler.isCameraAvailable()) {
+        throw OCRException(
+          'No cameras available',
+          type: OCRErrorType.cameraNotAvailable,
+        );
+      }
+      _cameras = await CameraErrorHandler.handleCameraOperation<List<CameraDescription>>(
+            () => availableCameras(),
+            onError: (error) {
+              throw OCRException(
+                'Failed to list cameras: $error',
+                type: OCRErrorType.cameraInitializationFailed,
+              );
+            },
+          ) ??
+          [];
+
+      if (_cameras.isEmpty) {
+        throw OCRException(
+          'No cameras found',
+          type: OCRErrorType.cameraNotAvailable,
+        );
+      }
+
+      // 3. Dispose any existing controller, then create a new one
+      await _disposeCamera();
+      if (_isDisposed) return;
+
+      _cameraController = CameraErrorHandler.createOptimizedController(
+        _cameras.first,
+      );
+      await _cameraController!.initialize();
+
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _isCameraInitialized = true;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _isLoading = false;
+        });
+        _handleCameraError(e);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _disposeCamera() async {
+    if (_cameraController != null) {
+      try {
+        await CameraErrorHandler.safeDispose(_cameraController);
+      } catch (_) {
+        // ignore
+      }
+      _cameraController = null;
+    }
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _isCameraInitialized = false;
+      });
+    }
+  }
+
+  void _handleCameraError(dynamic error) {
+    final errorType = OCRErrorHandler.categorizeError(
+      error,
+      context: OCRErrorContext(
+        operation: 'camera_operation',
+        metadata: {'screen': 'long_receipt_capture'},
+      ),
+    );
+    final errorMessage = OCRErrorHandler.getErrorMessage(
+      error,
+      context: OCRErrorContext(
+        operation: 'camera_operation',
+        metadata: {'screen': 'long_receipt_capture'},
+      ),
+    );
+
+    setState(() {
+      _errorMessage = errorMessage;
+      _currentErrorType = errorType;
+    });
+    _errorAnimationController.forward();
+  }
+
+  void _clearError() {
+    setState(() {
+      _errorMessage = null;
+      _currentErrorType = null;
+    });
+    _errorAnimationController.reverse();
   }
 
   Future<void> _captureSection() async {
-    if (!_isCameraInitialized || _isCapturing || _cameraController == null) {
+    if (!_isCameraInitialized ||
+        _isCapturing ||
+        _cameraController == null ||
+        _isDisposed) {
       return;
     }
 
     setState(() {
       _isCapturing = true;
     });
+    _currentCancellationToken = CancellationToken();
 
     try {
-      final image = await _cameraController!.takePicture();
-      final section = ReceiptSection(
-        imagePath: image.path,
-        sectionNumber: _currentSection,
-        timestamp: DateTime.now(),
+      final picture = await OCRErrorRecovery.executeWithRecovery(
+        () => _cameraController!.takePicture(),
+        'long_receipt_capture_photo',
+        context: OCRErrorContext(
+          operation: 'capture_section',
+          metadata: {
+            'section': _currentSection,
+          },
+        ),
+        onError: (error, attempt) {
+          debugPrint('Capture error (attempt $attempt): $error');
+          OCRErrorSnackBar.show(
+            context,
+            error,
+            errorContext: OCRErrorContext(
+              operation: 'capture_section',
+              metadata: {'attempt': attempt},
+            ),
+          );
+        },
       );
 
-      setState(() {
-        _capturedSections.add(section);
-        _currentSection++;
-        _isCapturing = false;
-      });
+      if (picture != null && mounted && !_isDisposed) {
+        // Push to preview screen for confirmation
+        final result = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (ctx) => EnhancedPhotoPreviewScreen(
+              imagePath: picture.path,
+              performanceMetrics: null,
+              cancellationToken: _currentCancellationToken,
+            ),
+          ),
+        );
 
-      _updateGuideText();
-      _showSectionCapturedDialog(section);
+        if (result == true) {
+          // User confirmed; store the path and move to next section
+          _capturedSections.add(picture.path);
+          setState(() {
+            _currentSection = _capturedSections.length + 1;
+          });
+          // Optionally: Immediately reopen camera if needed
+        }
+      }
     } catch (e) {
-      setState(() {
-        _isCapturing = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to capture: $e')));
-    }
-  }
-
-  void _showSectionCapturedDialog(ReceiptSection section) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Section ${section.sectionNumber} Captured'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 200,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(File(section.imagePath), fit: BoxFit.cover),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('Total sections captured: ${_capturedSections.length}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              _removeLastSection();
-              Navigator.of(ctx).pop();
-            },
-            child: const Text('Retake'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Continue'),
-          ),
-          if (_capturedSections.length >= 2)
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                _processAllSections();
-              },
-              child: const Text('Process Receipt'),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _removeLastSection() {
-    if (_capturedSections.isNotEmpty) {
-      final removed = _capturedSections.removeLast();
-      File(removed.imagePath).delete();
-      setState(() {
-        _currentSection--;
-      });
-      _updateGuideText();
+      _handleCameraError(e);
+    } finally {
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _isCapturing = false;
+        });
+      }
     }
   }
 
   Future<void> _processAllSections() async {
-    setState(() {
-      _isProcessing = true;
-    });
-
+    if (_capturedSections.length < 2) return;
+    // Combine all captured section images into one long receipt OCR pass
     try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => _buildProcessingDialog(),
-      );
-
-      final sectionPaths = _capturedSections
-          .map((section) => section.imagePath)
-          .toList();
-
-      setState(() {
-        _currentProcessingSection = _capturedSections.length;
-      });
-
-      final result = await ConsolidatedOCRService.instance.processLongReceipt(
-        sectionPaths,
-        priority: ProcessingPriority.normal,
-      );
-
-      final mergedResult = MergedReceiptResult(
-        prices: result.prices,
-        fullText: result.fullText,
-        totalSections: _capturedSections.length,
-        confidence: result.confidence,
-      );
-
-      Navigator.of(context).pop(); // Close progress dialog
-
-      Navigator.pushReplacement(
+      // Example: pass list of file paths to OCR service
+      await ConsolidatedOCRService.instance.processLongReceipt(_capturedSections);
+      // On success, pop back or show results
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      debugPrint('Error processing all sections: $e');
+      OCRErrorSnackBar.show(
         context,
-        MaterialPageRoute(
-          builder: (context) => LongReceiptResultsScreen(
-            sections: _capturedSections,
-            mergedResult: mergedResult,
-          ),
+        e,
+        errorContext: OCRErrorContext(
+          operation: 'process_all_sections',
         ),
       );
-    } catch (e) {
-      Navigator.of(context).pop(); // Close progress dialog
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Processing failed: $e')));
-    } finally {
-      setState(() {
-        _isProcessing = false;
-      });
     }
-  }
-
-
-
-  Widget _buildProcessingDialog() {
-    return AlertDialog(
-      title: const Text('Processing Long Receipt'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(
-            'Processing ${_capturedSections.length} sections with advanced OCR...',
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Using optimized processing with automatic section merging and deduplication.',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-
-  MergedReceiptResult _mergeReceiptSections(
-    List<ExtractedPrice> allPrices,
-    String fullText,
-  ) {
-    // Enhanced deduplication with semantic similarity
-    final uniquePrices = <ExtractedPrice>[];
-
-    for (final price in allPrices) {
-      bool isDuplicate = false;
-
-      for (int i = 0; i < uniquePrices.length; i++) {
-        final existing = uniquePrices[i];
-
-        if (_areSemanticallySimilar(price, existing)) {
-          // Keep the one with higher confidence
-          if (price.confidence > existing.confidence) {
-            uniquePrices[i] = price;
-          }
-          isDuplicate = true;
-          break;
-        }
-      }
-
-      if (!isDuplicate) {
-        uniquePrices.add(price);
-      }
-    }
-
-    // Sort by position to maintain receipt order
-    uniquePrices.sort((a, b) => a.position.top.compareTo(b.position.top));
-
-    return MergedReceiptResult(
-      prices: uniquePrices,
-      fullText: fullText,
-      totalSections: _capturedSections.length,
-      confidence: _calculateMergedConfidence(uniquePrices),
-    );
-  }
-
-  bool _areSemanticallySimilar(ExtractedPrice price1, ExtractedPrice price2) {
-    // Same price within 1 cent
-    if ((price1.price - price2.price).abs() < 0.01) {
-      return true;
-    }
-
-    // Very similar item names with small price difference
-    final similarity = _calculateStringSimilarity(
-      price1.itemName.toLowerCase(),
-      price2.itemName.toLowerCase(),
-    );
-
-    if (similarity > 0.85) {
-      final priceDiff =
-          (price1.price - price2.price).abs() /
-          ((price1.price + price2.price) / 2);
-      return priceDiff < 0.1; // 10% difference threshold
-    }
-
-    return false;
-  }
-
-  double _calculateStringSimilarity(String str1, String str2) {
-    if (str1 == str2) return 1.0;
-    if (str1.isEmpty || str2.isEmpty) return 0.0;
-
-    final words1 = str1.split(' ').toSet();
-    final words2 = str2.split(' ').toSet();
-    final intersection = words1.intersection(words2);
-    final union = words1.union(words2);
-
-    return intersection.length / union.length;
-  }
-
-  double _calculateMergedConfidence(List<ExtractedPrice> prices) {
-    if (prices.isEmpty) return 0.0;
-
-    final avgConfidence =
-        prices.map((p) => p.confidence).reduce((a, b) => a + b) / prices.length;
-
-    // Bonus for multiple sections
-    final sectionBonus = (_capturedSections.length - 1) * 0.05;
-
-    return (avgConfidence + sectionBonus).clamp(0.0, 1.0);
   }
 
   @override
@@ -340,7 +326,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: Text('Long Receipt - Section $_currentSection'),
+        title: Text('Long Receipt – Section $_currentSection'),
         actions: [
           if (_capturedSections.isNotEmpty)
             TextButton(
@@ -354,178 +340,140 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
             ),
         ],
       ),
-      body: _isCameraInitialized ? _buildCameraView() : _buildLoadingView(),
+      body: Stack(
+        children: [
+          _isCameraInitialized ? _buildCameraView() : _buildLoadingView(),
+          if (_errorMessage != null) _buildErrorOverlay(),
+        ],
+      ),
+      bottomNavigationBar:
+          _isCameraInitialized && !_isCapturing ? _buildControls() : null,
     );
   }
 
   Widget _buildLoadingView() {
-    return const Center(child: CircularProgressIndicator(color: Colors.white));
-  }
-
-  Widget _buildCameraView() {
-    return Stack(
-      children: [
-        Positioned.fill(child: CameraPreview(_cameraController!)),
-        _buildCameraOverlay(),
-        _buildSectionsIndicator(),
-        _buildCameraControls(),
-      ],
-    );
-  }
-
-  Widget _buildCameraOverlay() {
-    return Positioned.fill(
+    return Center(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.black.withOpacity(0.8), Colors.transparent],
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  Text(
-                    _guideText ?? '',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (_capturedSections.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Sections captured: ${_capturedSections.length}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          const CircularProgressIndicator(color: Colors.white),
+          const SizedBox(height: 12),
+          const Text(
+            'Initializing camera...',
+            style: TextStyle(color: Colors.white70),
           ),
-          const Spacer(),
-          CustomPaint(
-            size: Size(MediaQuery.of(context).size.width, 300),
-            painter: ReceiptFramePainter(),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: _initializeWithErrorHandling,
+            child: const Text('Retry'),
           ),
-          const Spacer(),
         ],
       ),
     );
   }
 
-  Widget _buildSectionsIndicator() {
-    if (_capturedSections.isEmpty) return const SizedBox.shrink();
-
-    return Positioned(
-      top: 100,
-      right: 16,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          children: [
-            const Text(
-              'Captured:',
-              style: TextStyle(color: Colors.white, fontSize: 12),
-            ),
-            const SizedBox(height: 4),
-            ..._capturedSections.asMap().entries.map((entry) {
-              return Container(
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${entry.key + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+  Widget _buildErrorOverlay() {
+    return AnimatedBuilder(
+      animation: _errorFadeAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _errorFadeAnimation.value,
+          child: Container(
+            width: double.infinity,
+            color: Colors.red.withOpacity(0.9),
+            padding: const EdgeInsets.all(16),
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.error, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage ?? 'Unknown error',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _clearError,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white),
+                          ),
+                          child: const Text(
+                            'Dismiss',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _clearError();
+                            _initializeWithErrorHandling();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.red,
+                          ),
+                          child: const Text('Retry'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildCameraControls() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          border: Border(top: BorderSide(color: Colors.grey[800]!, width: 1)),
+  Widget _buildCameraView() {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return const Center(
+        child: Text(
+          'Camera not available',
+          style: TextStyle(color: Colors.white70),
         ),
-        child: SafeArea(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              IconButton(
-                onPressed: _capturedSections.isNotEmpty
-                    ? _removeLastSection
-                    : null,
-                icon: Icon(
-                  Icons.undo,
-                  color: _capturedSections.isNotEmpty
-                      ? Colors.white
-                      : Colors.grey,
-                  size: 32,
-                ),
+      );
+    }
+    return CameraPreview(_cameraController!);
+  }
+
+  Widget _buildControls() {
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            IconButton(
+              onPressed: _isCapturing ? null : _captureSection,
+              iconSize: 64,
+              icon: Icon(
+                Icons.camera,
+                color: _isCapturing ? Colors.grey : Colors.white,
               ),
-              GestureDetector(
-                onTap: _isCapturing ? null : _captureSection,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
-                  ),
-                  child: Container(
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isCapturing ? Colors.red : Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: _capturedSections.length >= 2
-                    ? _processAllSections
-                    : null,
-                icon: Icon(
-                  Icons.check,
-                  color: _capturedSections.length >= 2
-                      ? Colors.green
-                      : Colors.grey,
-                  size: 32,
-                ),
-              ),
-            ],
-          ),
+            ),
+            Text(
+              'Section $_currentSection',
+              style: const TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+          ],
         ),
       ),
     );

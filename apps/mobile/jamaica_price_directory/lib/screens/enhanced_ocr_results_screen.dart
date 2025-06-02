@@ -364,54 +364,69 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedStore,
-                  decoration: InputDecoration(
-                    labelText: 'Store Name',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedStore,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Store Name',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      prefixIcon: Icon(Icons.store),
+                      isCollapsed: false,
                     ),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    prefixIcon: Icon(Icons.store),
-                    isCollapsed: true,
+                    items: _stores.map((store) {
+                      return DropdownMenuItem(
+                        value: store,
+                        child: Text(store, overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedStore = value;
+                      });
+                    },
                   ),
-                  items: _stores.map((store) {
-                    return DropdownMenuItem(value: store, child: Text(store));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedStore = value;
-                    });
-                  },
                 ),
               ),
-              Spacer(),
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedParish,
-                  decoration: InputDecoration(
-                    labelText: 'Parish',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedParish,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Parish',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      prefixIcon: Icon(Icons.location_on),
+                      isCollapsed: false,
                     ),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    prefixIcon: Icon(Icons.location_on),
-                    isCollapsed: true,
+                    items: _parishes.map((parish) {
+                      return DropdownMenuItem(
+                        value: parish,
+                        child: Text(parish, overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedParish = value;
+                      });
+                    },
                   ),
-                  items: _parishes.map((parish) {
-                    return DropdownMenuItem(value: parish, child: Text(parish));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedParish = value;
-                    });
-                  },
                 ),
               ),
             ],
