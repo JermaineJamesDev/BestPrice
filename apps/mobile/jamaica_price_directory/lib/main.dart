@@ -16,15 +16,21 @@ import 'services/consolidated_ocr_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-   // Initialize the consolidated OCR service
+  // Initialize the consolidated OCR service
   final config = OCRServiceConfig(
     usePersistentCache: true,
     maxRetryAttempts: 3,
     enablePerformanceMonitoring: true,
     defaultPriority: ProcessingPriority.normal,
   );
-  
+
   await ConsolidatedOCRService.instance.initialize(config: config);
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('🚨 Flutter Error: ${details.exception}');
+    debugPrint('🚨 Stack Trace: ${details.stack}');
+    FlutterError.presentError(details);
+  };
 
   runApp(const JamaicaPriceDirectoryApp());
 }

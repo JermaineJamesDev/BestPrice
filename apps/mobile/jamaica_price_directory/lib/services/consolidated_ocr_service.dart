@@ -95,69 +95,18 @@ class ConsolidatedOCRService {
     ProcessingPriority priority = ProcessingPriority.normal,
     CancellationToken? cancellationToken,
   }) async {
-    if (_shouldSkipProcessing()) {
-      debugPrint('⏭️ Skipping OCR - too frequent');
-      return OCRResult(
-        fullText: '',
-        prices: [],
-        confidence: 0.0,
-        enhancement: EnhancementType.original,
-        storeType: 'skipped',
-        metadata: {'skipped': true},
-      );
+    final batchResult = await processImageList(
+      [imagePath],
+      mode: ProcessingMode.individual,
+      priority: priority,
+      cancellationToken: cancellationToken,
+    );
+
+    if (batchResult.results.isEmpty) {
+      throw OCRException('No results from single image processing');
     }
-    _ensureInitialized();
 
-    final stopwatch = Stopwatch()..start();
-    final sessionId = _generateSessionId();
-    final token = cancellationToken ?? CancellationToken();
-
-    try {
-      // Check cache first
-      final cacheKey = _generateCacheKey(imagePath);
-      final cached = await _cacheManager.getCachedResult(cacheKey);
-      if (cached != null) {
-        debugPrint('ConsolidatedOCRService: Cache hit for $imagePath');
-        return cached;
-      }
-
-      await _waitForProcessingSlot(priority, _currentProcessingTasks);
-      _currentProcessingTasks++;
-      _activeTasks.add(token);
-
-      final result = await _processImageInternal(
-        imagePath,
-        isLongReceipt: false,
-        cancellationToken: token,
-      );
-
-      await _cacheManager.cacheResult(cacheKey, result);
-
-      stopwatch.stop();
-      await _logPerformance(
-        sessionId,
-        imagePath,
-        stopwatch.elapsedMilliseconds,
-        result,
-        false,
-      );
-
-      return result;
-    } catch (e) {
-      stopwatch.stop();
-      await _logPerformance(
-        sessionId,
-        imagePath,
-        stopwatch.elapsedMilliseconds,
-        null,
-        false,
-        e.toString(),
-      );
-      rethrow;
-    } finally {
-      _currentProcessingTasks--;
-      _activeTasks.remove(token);
-    }
+    return batchResult.results.first;
   }
 
   Future<OCRResult> processLongReceipt(
@@ -165,76 +114,18 @@ class ConsolidatedOCRService {
     ProcessingPriority priority = ProcessingPriority.normal,
     CancellationToken? cancellationToken,
   }) async {
-    _ensureInitialized();
+    final batchResult = await processImageList(
+      sectionPaths,
+      mode: ProcessingMode.longReceipt,
+      priority: priority,
+      cancellationToken: cancellationToken,
+    );
 
-    if (sectionPaths.isEmpty) {
-      throw OCRException(
-        'No receipt sections provided',
-        type: OCRErrorType.insufficientSections,
-      );
+    if (batchResult.results.isEmpty) {
+      throw OCRException('No results from long receipt processing');
     }
 
-    final stopwatch = Stopwatch()..start();
-    final sessionId = _generateSessionId();
-    final token = cancellationToken ?? CancellationToken();
-
-    try {
-      final cacheKey = _generateLongReceiptCacheKey(sectionPaths);
-      final cached = await _cacheManager.getCachedResult(cacheKey);
-      if (cached != null) {
-        debugPrint('ConsolidatedOCRService: Cache hit for long receipt');
-        return cached;
-      }
-
-      await _waitForProcessingSlot(priority, _currentProcessingTasks);
-      _currentProcessingTasks++;
-      _activeTasks.add(token);
-
-      final sectionResults = <OCRResult>[];
-      for (int i = 0; i < sectionPaths.length; i++) {
-        if (token.isCancelled) {
-          throw CancellationException('Long receipt processing cancelled');
-        }
-
-        debugPrint(
-          'ConsolidatedOCRService: Processing section ${i + 1}/${sectionPaths.length}',
-        );
-        final sectionResult = await _processImageInternal(
-          sectionPaths[i],
-          isLongReceipt: true,
-          cancellationToken: token,
-        );
-        sectionResults.add(sectionResult);
-      }
-
-      final mergedResult = _mergeLongReceiptResults(sectionResults);
-      await _cacheManager.cacheResult(cacheKey, mergedResult);
-
-      stopwatch.stop();
-      await _logPerformance(
-        sessionId,
-        cacheKey,
-        stopwatch.elapsedMilliseconds,
-        mergedResult,
-        true,
-      );
-
-      return mergedResult;
-    } catch (e) {
-      stopwatch.stop();
-      await _logPerformance(
-        sessionId,
-        sectionPaths.first,
-        stopwatch.elapsedMilliseconds,
-        null,
-        true,
-        e.toString(),
-      );
-      rethrow;
-    } finally {
-      _currentProcessingTasks--;
-      _activeTasks.remove(token);
-    }
+    return batchResult.results.first;
   }
 
   Future<OCRResult> _processImageInternal(
@@ -356,11 +247,166 @@ class ConsolidatedOCRService {
     }
   }
 
+  Future<BatchOCRResult> processImageList(
+    List<String> imagePaths, {
+    ProcessingMode mode = ProcessingMode.individual,
+    ProcessingPriority priority = ProcessingPriority.normal,
+    CancellationToken? cancellationToken,
+    Function(int current, int total, String imagePath)? onProgress,
+  }) async {
+    _ensureInitialized();
+
+    if (imagePaths.isEmpty) {
+      throw OCRException(
+        'No image paths provided',
+        type: OCRErrorType.insufficientSections,
+      );
+    }
+
+    final stopwatch = Stopwatch()..start();
+    final sessionId = _generateSessionId();
+    final token = cancellationToken ?? CancellationToken();
+    final results = <OCRResult>[];
+    int successfulImages = 0;
+    int failedImages = 0;
+
+    try {
+      await _waitForProcessingSlot(priority, _currentProcessingTasks);
+      _currentProcessingTasks++;
+      _activeTasks.add(token);
+
+      switch (mode) {
+        case ProcessingMode.individual:
+          // Process each image separately
+          for (int i = 0; i < imagePaths.length; i++) {
+            if (token.isCancelled) {
+              throw CancellationException('Batch processing cancelled');
+            }
+
+            final imagePath = imagePaths[i];
+            onProgress?.call(i + 1, imagePaths.length, imagePath);
+
+            try {
+              final result = await _processImageInternal(
+                imagePath,
+                isLongReceipt: false,
+                cancellationToken: token,
+              );
+              results.add(result);
+              successfulImages++;
+            } catch (e) {
+              debugPrint('Failed to process image $imagePath: $e');
+              failedImages++;
+
+              // Create an error result to maintain list consistency
+              final errorResult = OCRResult(
+                fullText: '',
+                prices: [],
+                confidence: 0.0,
+                enhancement: EnhancementType.original,
+                storeType: 'unknown',
+                metadata: {
+                  'error': true,
+                  'error_message': e.toString(),
+                  'image_path': imagePath,
+                },
+              );
+              results.add(errorResult);
+            }
+          }
+          break;
+
+        case ProcessingMode.longReceipt:
+          // Process as long receipt sections
+          onProgress?.call(0, 1, 'Processing long receipt...');
+
+          try {
+            final mergedResult = await _processLongReceiptInternal(
+              imagePaths,
+              cancellationToken: token,
+            );
+            results.add(mergedResult);
+            successfulImages = 1;
+          } catch (e) {
+            failedImages = 1;
+            final errorResult = OCRResult(
+              fullText: '',
+              prices: [],
+              confidence: 0.0,
+              enhancement: EnhancementType.original,
+              storeType: 'unknown',
+              metadata: {
+                'error': true,
+                'error_message': e.toString(),
+                'long_receipt': true,
+                'section_count': imagePaths.length,
+              },
+            );
+            results.add(errorResult);
+          }
+          break;
+      }
+
+      stopwatch.stop();
+
+      final batchResult = BatchOCRResult(
+        results: results,
+        totalImages: imagePaths.length,
+        successfulImages: successfulImages,
+        failedImages: failedImages,
+        totalProcessingTime: stopwatch.elapsed,
+        batchMetadata: {
+          'session_id': sessionId,
+          'processing_mode': mode.toString(),
+          'priority': priority.toString(),
+          'total_processing_time_ms': stopwatch.elapsedMilliseconds,
+          'average_time_per_image': imagePaths.isNotEmpty
+              ? stopwatch.elapsedMilliseconds / imagePaths.length
+              : 0,
+        },
+      );
+
+      await _logBatchPerformance(sessionId, batchResult, mode);
+      return batchResult;
+    } catch (e) {
+      stopwatch.stop();
+      await _logBatchPerformance(sessionId, null, mode, e.toString());
+      rethrow;
+    } finally {
+      _currentProcessingTasks--;
+      _activeTasks.remove(token);
+    }
+  }
+
+  Future<OCRResult> _processLongReceiptInternal(
+    List<String> sectionPaths, {
+    CancellationToken? cancellationToken,
+  }) async {
+    final sectionResults = <OCRResult>[];
+
+    for (int i = 0; i < sectionPaths.length; i++) {
+      if (cancellationToken?.isCancelled == true) {
+        throw CancellationException('Long receipt processing cancelled');
+      }
+
+      debugPrint(
+        'ConsolidatedOCRService: Processing section ${i + 1}/${sectionPaths.length}',
+      );
+
+      final sectionResult = await _processImageInternal(
+        sectionPaths[i],
+        isLongReceipt: true,
+        cancellationToken: cancellationToken,
+      );
+      sectionResults.add(sectionResult);
+    }
+
+    return _mergeLongReceiptResults(sectionResults);
+  }
+
   Future<String?> _saveImageToTempFile(img.Image image) async {
     try {
-      if (_tempDirectory == null) {
-        _tempDirectory = await getTemporaryDirectory();
-      }
+      _tempDirectory ??= await getTemporaryDirectory();
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final tempPath = '${_tempDirectory!.path}/ocr_temp_$timestamp.jpg';
@@ -376,6 +422,43 @@ class ConsolidatedOCRService {
     }
   }
 
+  Future<void> _logBatchPerformance(
+    String sessionId,
+    BatchOCRResult? result,
+    ProcessingMode mode, [
+    String? error,
+  ]) async {
+    if (!_config.enablePerformanceMonitoring) return;
+
+    final metadata = result?.batchMetadata ?? {};
+    metadata.addAll({
+      'processing_mode': mode.toString(),
+      'is_batch': true,
+      'error': error,
+    });
+
+    await OCRPerformanceMonitor.logOCRAttempt(
+      sessionId: sessionId,
+      imagePath: 'batch_processing',
+      processingTimeMs: result?.totalProcessingTime.inMilliseconds ?? 0,
+      extractedPricesCount:
+          result?.results.fold(0, (sum, r) => sum! + r.prices.length) ?? 0,
+      averageConfidence: result?.results.isNotEmpty == true
+          ? result!.results.map((r) => r.confidence).reduce((a, b) => a + b) /
+                result.results.length
+          : 0.0,
+      bestEnhancement: result?.results.isNotEmpty == true
+          ? result!.results.first.enhancement.toString()
+          : 'none',
+      storeType: result?.results.isNotEmpty == true
+          ? result!.results.first.storeType
+          : 'unknown',
+      isLongReceipt: mode == ProcessingMode.longReceipt,
+      metadata: metadata,
+      errorMessage: error,
+    );
+  }
+
   Future<img.Image> _preprocessImage(img.Image image) async {
     try {
       return await OCRImageUtils.preprocessForOCR(image);
@@ -387,25 +470,167 @@ class ConsolidatedOCRService {
 
   Future<RecognizedText> _performOCRFromFile(String imagePath) async {
     try {
-      final inputImage = InputImage.fromFilePath(imagePath);
-      return await _textRecognizer
-          .processImage(inputImage)
-          .timeout(processingTimeout);
-    } catch (e) {
-      debugPrint('OCR from file failed: $e');
+      debugPrint('🔍 Starting OCR for file: ${imagePath.split('/').last}');
 
-      // Fallback: try with bytes if file method fails
-      try {
-        final file = File(imagePath);
-        final bytes = await file.readAsBytes();
-        return await _performOCRFromBytes(bytes);
-      } catch (fallbackError) {
-        debugPrint('OCR fallback also failed: $fallbackError');
+      // Validate file exists and is readable
+      final file = File(imagePath);
+      if (!await file.exists()) {
         throw OCRException(
-          'OCR processing failed: $e',
-          type: OCRErrorType.processingFailed,
+          'Image file not found: $imagePath',
+          type: OCRErrorType.imageNotFound,
         );
       }
+
+      final fileSize = await file.length();
+      debugPrint('📄 File size: ${(fileSize / 1024).toStringAsFixed(1)}KB');
+
+      if (fileSize == 0) {
+        throw OCRException(
+          'Image file is empty',
+          type: OCRErrorType.imageCorrupted,
+        );
+      }
+
+      // Try multiple approaches for OCR
+      RecognizedText? result;
+      Exception? lastException;
+
+      // Approach 1: Direct file input (most efficient)
+      try {
+        debugPrint('🔄 Attempting OCR with direct file input...');
+        final inputImage = InputImage.fromFilePath(imagePath);
+        result = await _textRecognizer
+            .processImage(inputImage)
+            .timeout(processingTimeout);
+        debugPrint('✅ OCR successful with direct file input');
+        return result;
+      } catch (e) {
+        debugPrint('⚠️ Direct file OCR failed: $e');
+        lastException = e is Exception ? e : Exception(e.toString());
+      }
+
+      // Approach 2: Bytes input with proper metadata
+      try {
+        debugPrint('🔄 Attempting OCR with bytes input...');
+        final bytes = await file.readAsBytes();
+
+        // Decode image to get proper dimensions
+        final image = img.decodeImage(bytes);
+        if (image == null) {
+          throw OCRException(
+            'Failed to decode image for OCR',
+            type: OCRErrorType.imageCorrupted,
+          );
+        }
+
+        debugPrint('🖼️ Image dimensions: ${image.width}x${image.height}');
+
+        // Create InputImage with proper metadata
+        final inputImage = InputImage.fromBytes(
+          bytes: bytes,
+          metadata: InputImageMetadata(
+            size: Size(image.width.toDouble(), image.height.toDouble()),
+            rotation: InputImageRotation.rotation0deg,
+            format: InputImageFormat.yuv420, // Try different format
+            bytesPerRow: image.width * 4, // RGBA
+          ),
+        );
+
+        result = await _textRecognizer
+            .processImage(inputImage)
+            .timeout(processingTimeout);
+        debugPrint('✅ OCR successful with bytes input');
+        return result;
+      } catch (e) {
+        debugPrint('⚠️ Bytes OCR failed: $e');
+        lastException = e is Exception ? e : Exception(e.toString());
+      }
+
+      // Approach 3: Processed image with format conversion
+      try {
+        debugPrint('🔄 Attempting OCR with processed image...');
+        final bytes = await file.readAsBytes();
+        final image = img.decodeImage(bytes);
+
+        if (image == null) {
+          throw OCRException(
+            'Failed to decode image for processing',
+            type: OCRErrorType.imageCorrupted,
+          );
+        }
+
+        // Convert to JPEG if needed and ensure proper format
+        final processedBytes = img.encodeJpg(image, quality: 90);
+
+        final inputImage = InputImage.fromBytes(
+          bytes: processedBytes,
+          metadata: InputImageMetadata(
+            size: Size(image.width.toDouble(), image.height.toDouble()),
+            rotation: InputImageRotation.rotation0deg,
+            format: InputImageFormat.nv21,
+            bytesPerRow: image.width,
+          ),
+        );
+
+        result = await _textRecognizer
+            .processImage(inputImage)
+            .timeout(processingTimeout);
+        debugPrint('✅ OCR successful with processed image');
+        return result;
+      } catch (e) {
+        debugPrint('⚠️ Processed image OCR failed: $e');
+        lastException = e is Exception ? e : Exception(e.toString());
+      }
+
+      // If all approaches failed, throw the last exception
+      debugPrint('❌ All OCR approaches failed');
+      throw OCRException(
+        'OCR processing failed after multiple attempts: ${lastException?.toString() ?? "Unknown error"}',
+        type: OCRErrorType.processingFailed,
+      );
+    } catch (e) {
+      debugPrint('❌ OCR processing error: $e');
+      if (e is OCRException) {
+        rethrow;
+      }
+      throw OCRException(
+        'OCR processing failed: $e',
+        type: OCRErrorType.processingFailed,
+      );
+    }
+  }
+
+  Future<img.Image> _preprocessImageSafely(img.Image image) async {
+    try {
+      debugPrint('🔧 Starting safe image preprocessing...');
+      debugPrint('📐 Original image: ${image.width}x${image.height}');
+
+      // Apply lightweight preprocessing to avoid memory issues
+      var processed = image;
+
+      // Resize if too large (prevent memory crashes)
+      if (image.width > 2048 || image.height > 2048) {
+        debugPrint('📏 Resizing large image...');
+        final maxDim = 2048;
+        final ratio =
+            maxDim / (image.width > image.height ? image.width : image.height);
+        processed = img.copyResize(
+          processed,
+          width: (image.width * ratio).round(),
+          height: (image.height * ratio).round(),
+          interpolation: img.Interpolation.linear, // Faster than cubic
+        );
+        debugPrint('✅ Resized to: ${processed.width}x${processed.height}');
+      }
+
+      // Apply basic enhancement (safer than advanced preprocessing)
+      processed = img.adjustColor(processed, contrast: 1.1, brightness: 5);
+
+      debugPrint('✅ Image preprocessing completed safely');
+      return processed;
+    } catch (e) {
+      debugPrint('⚠️ Preprocessing failed, using original: $e');
+      return image; // Return original if preprocessing fails
     }
   }
 
@@ -1105,6 +1330,33 @@ class ConsolidatedOCRService {
   }
 }
 
+enum ProcessingMode {
+  individual, // Process each image separately
+  longReceipt, // Process as sections of a long receipt (merge results)
+}
+
+class BatchOCRResult {
+  final List<OCRResult> results;
+  final int totalImages;
+  final int successfulImages;
+  final int failedImages;
+  final Duration totalProcessingTime;
+  final Map<String, dynamic> batchMetadata;
+
+  BatchOCRResult({
+    required this.results,
+    required this.totalImages,
+    required this.successfulImages,
+    required this.failedImages,
+    required this.totalProcessingTime,
+    required this.batchMetadata,
+  });
+
+  double get successRate =>
+      totalImages > 0 ? successfulImages / totalImages : 0.0;
+  bool get hasResults => results.isNotEmpty;
+}
+
 // Configuration and data classes
 class OCRServiceConfig {
   final bool usePersistentCache;
@@ -1248,14 +1500,18 @@ extension StringOCRExtension on String {
 }
 
 extension ListStringOCRExtension on List<String> {
-  Future<OCRResult> processAsLongReceipt({
+  Future<BatchOCRResult> processAsImageList({
+    ProcessingMode mode = ProcessingMode.individual,
     ProcessingPriority priority = ProcessingPriority.normal,
     CancellationToken? cancellationToken,
+    Function(int current, int total, String imagePath)? onProgress,
   }) {
-    return ConsolidatedOCRService.instance.processLongReceipt(
+    return ConsolidatedOCRService.instance.processImageList(
       this,
+      mode: mode,
       priority: priority,
       cancellationToken: cancellationToken,
+      onProgress: onProgress,
     );
   }
 }

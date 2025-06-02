@@ -1,6 +1,7 @@
-// lib/screens/enhanced_camera_screen.dart
 import 'package:flutter/material.dart';
+import 'package:jamaica_price_directory/screens/manual_price_entry_screen.dart';
 import 'camera_capture_screen.dart';
+import 'gallery_picker_screen.dart';
 import 'long_receipt_capture_screen.dart';
 
 class EnhancedCameraScreen extends StatefulWidget {
@@ -14,36 +15,28 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   void _takePhoto() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => CameraCaptureScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => CameraCaptureScreen()),
     );
   }
 
   void _takeLongReceiptPhoto() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => LongReceiptCaptureScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => LongReceiptCaptureScreen()),
     );
   }
 
   void _manualEntry() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ManualPriceEntryScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => ManualPriceEntryScreen()),
     );
   }
 
   void _uploadFromGallery() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Gallery upload feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => GalleryPickerScreen()),
     );
   }
 
@@ -96,11 +89,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.camera_alt,
-                size: 32,
-                color: Color(0xFF1E3A8A),
-              ),
+              Icon(Icons.camera_alt, size: 32, color: Color(0xFF1E3A8A)),
               SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -140,7 +129,6 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   Widget _buildActionButtons() {
     return Column(
       children: [
-        // Regular Receipt
         InkWell(
           onTap: _takePhoto,
           borderRadius: BorderRadius.circular(16),
@@ -165,11 +153,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             ),
             child: Column(
               children: [
-                Icon(
-                  Icons.camera_alt,
-                  size: 48,
-                  color: Colors.white,
-                ),
+                Icon(Icons.camera_alt, size: 48, color: Colors.white),
                 SizedBox(height: 12),
                 Text(
                   'Standard Receipt',
@@ -191,10 +175,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             ),
           ),
         ),
-        
         SizedBox(height: 16),
-        
-        // Long Receipt
         InkWell(
           onTap: _takeLongReceiptPhoto,
           borderRadius: BorderRadius.circular(16),
@@ -219,11 +200,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             ),
             child: Column(
               children: [
-                Icon(
-                  Icons.receipt_long,
-                  size: 48,
-                  color: Colors.white,
-                ),
+                Icon(Icons.receipt_long, size: 48, color: Colors.white),
                 SizedBox(height: 12),
                 Text(
                   'Long Receipt',
@@ -245,9 +222,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             ),
           ),
         ),
-        
         SizedBox(height: 16),
-        
         Row(
           children: [
             Expanded(
@@ -263,8 +238,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
               child: _buildSecondaryButton(
                 icon: Icons.photo_library,
                 label: 'From Gallery',
-                subtitle: 'Upload existing photos',
-                onTap: _uploadFromGallery,
+                subtitle: 'Upload existing photos', // Updated subtitle
+                onTap: _uploadFromGallery, // Now calls actual functionality
               ),
             ),
           ],
@@ -315,12 +290,26 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             Icons.receipt_long,
             Color(0xFF059669),
           ),
+          SizedBox(height: 12),
+          _buildReceiptTypeItem(
+            'From Gallery',
+            'For existing receipt photos on your device',
+            'Previously taken photos, screenshots, multiple images at once',
+            Icons.photo_library,
+            Color(0xFF7C3AED),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildReceiptTypeItem(String title, String subtitle, String examples, IconData icon, Color color) {
+  Widget _buildReceiptTypeItem(
+    String title,
+    String subtitle,
+    String examples,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -355,10 +344,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                 SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                 ),
                 SizedBox(height: 4),
                 Text(
@@ -392,10 +378,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
       ],
     );
@@ -427,11 +410,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 32,
-              color: Color(0xFF1E3A8A),
-            ),
+            Icon(icon, size: 32, color: Color(0xFF1E3A8A)),
             SizedBox(height: 8),
             Text(
               label,
@@ -445,10 +424,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -512,7 +488,12 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
     );
   }
 
-  Widget _buildHowItWorksStep(String step, String title, String description, IconData icon) {
+  Widget _buildHowItWorksStep(
+    String step,
+    String title,
+    String description,
+    IconData icon,
+  ) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -535,11 +516,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             ),
           ),
           SizedBox(width: 16),
-          Icon(
-            icon,
-            color: Color(0xFF1E3A8A),
-            size: 24,
-          ),
+          Icon(icon, color: Color(0xFF1E3A8A), size: 24),
           SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -547,17 +524,11 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
                   description,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
                 ),
               ],
             ),
@@ -570,12 +541,22 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   Widget _buildRecentSubmissions() {
     final List<Map<String, dynamic>> recentSubmissions = [
       {
+        'item': 'Gallery Import (8 images)',
+        'store': 'Hi-Lo Kingston',
+        'sections': 8,
+        'status': 'Verified',
+        'date': '30 minutes ago',
+        'confidence': 96.2,
+        'type': 'gallery',
+      },
+      {
         'item': 'Long Receipt (15 items)',
         'store': 'MegaMart Spanish Town',
         'sections': 3,
         'status': 'Verified',
         'date': '1 hour ago',
         'confidence': 94.5,
+        'type': 'long',
       },
       {
         'item': 'Standard Receipt (5 items)',
@@ -584,14 +565,16 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         'status': 'Verified',
         'date': '3 hours ago',
         'confidence': 97.8,
+        'type': 'standard',
       },
       {
-        'item': 'Long Receipt (22 items)',
+        'item': 'Gallery Import (3 images)',
         'store': 'PriceSmart Portmore',
-        'sections': 4,
+        'sections': 3,
         'status': 'Pending',
         'date': '1 day ago',
-        'confidence': 91.2,
+        'confidence': 92.1,
+        'type': 'gallery',
       },
     ];
 
@@ -626,7 +609,9 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
               TextButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Full submission history coming soon!')),
+                    SnackBar(
+                      content: Text('Full submission history coming soon!'),
+                    ),
                   );
                 },
                 child: Text('View All'),
@@ -635,6 +620,23 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
           ),
           SizedBox(height: 12),
           ...recentSubmissions.map((submission) {
+            IconData iconData;
+            Color iconColor;
+
+            switch (submission['type']) {
+              case 'gallery':
+                iconData = Icons.photo_library;
+                iconColor = Color(0xFF7C3AED);
+                break;
+              case 'long':
+                iconData = Icons.receipt_long;
+                iconColor = Color(0xFF059669);
+                break;
+              default:
+                iconData = Icons.receipt;
+                iconColor = Color(0xFF1E3A8A);
+            }
+
             return Container(
               margin: EdgeInsets.symmetric(vertical: 4),
               padding: EdgeInsets.all(12),
@@ -644,10 +646,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    submission['sections'] > 1 ? Icons.receipt_long : Icons.receipt,
-                    color: submission['sections'] > 1 ? Color(0xFF059669) : Color(0xFF1E3A8A),
-                  ),
+                  Icon(iconData, color: iconColor),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -661,7 +660,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                           ),
                         ),
                         Text(
-                          '${submission['store']} • ${submission['sections']} section${submission['sections'] > 1 ? 's' : ''}',
+                          '${submission['store']} • ${submission['sections']} ${submission['type'] == 'gallery' ? 'image' : 'section'}${submission['sections'] > 1 ? 's' : ''}',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
@@ -677,8 +676,11 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                         '${submission['confidence']}%',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: submission['confidence'] >= 95 ? Colors.green : 
-                                 submission['confidence'] >= 90 ? Colors.orange : Colors.red,
+                          color: submission['confidence'] >= 95
+                              ? Colors.green
+                              : submission['confidence'] >= 90
+                              ? Colors.orange
+                              : Colors.red,
                         ),
                       ),
                       Row(
@@ -688,9 +690,9 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                             width: 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: submission['status'] == 'Verified' 
-                                ? Colors.green 
-                                : Colors.orange,
+                              color: submission['status'] == 'Verified'
+                                  ? Colors.green
+                                  : Colors.orange,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -713,157 +715,5 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         ],
       ),
     );
-  }
-}
-
-class ManualPriceEntryScreen extends StatefulWidget {
-  const ManualPriceEntryScreen({super.key});
-
-  @override
-  _ManualPriceEntryScreenState createState() => _ManualPriceEntryScreenState();
-}
-
-class _ManualPriceEntryScreenState extends State<ManualPriceEntryScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _itemController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _storeController = TextEditingController();
-  String? selectedParish = 'Kingston';
-  String? selectedCategory = 'Groceries';
-
-  final List<String> parishes = [
-    'Kingston', 'St. Andrew', 'St. Thomas', 'Portland', 'St. Mary',
-    'St. Ann', 'Trelawny', 'St. James', 'Hanover', 'Westmoreland',
-    'St. Elizabeth', 'Manchester', 'Clarendon', 'St. Catherine',
-  ];
-
-  final List<String> categories = [
-    'Groceries', 'Fuel', 'Utilities', 'Electronics', 'Pharmacy',
-    'Restaurants', 'Transport', 'Services',
-  ];
-
-  void _submitPrice() {
-    if (_formKey.currentState!.validate()) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Price Submitted!'),
-          content: Text('Thank you for contributing. Your submission is being reviewed.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.pop(context);
-              },
-              child: Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Manual Price Entry'),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _itemController,
-                decoration: InputDecoration(
-                  labelText: 'Item Name',
-                  hintText: 'e.g., Rice (1 lb)',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter item name';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _priceController,
-                decoration: InputDecoration(
-                  labelText: 'Price (JMD)',
-                  hintText: 'e.g., 120.00',
-                  prefixText: 'J\$',
-                ),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter price';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _storeController,
-                decoration: InputDecoration(
-                  labelText: 'Store Name',
-                  hintText: 'e.g., Hi-Lo',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter store name';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedParish,
-                decoration: InputDecoration(labelText: 'Parish'),
-                items: parishes.map((parish) {
-                  return DropdownMenuItem(value: parish, child: Text(parish));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedParish = value;
-                  });
-                },
-              ),
-              SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedCategory,
-                decoration: InputDecoration(labelText: 'Category'),
-                items: categories.map((category) {
-                  return DropdownMenuItem(value: category, child: Text(category));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedCategory = value;
-                  });
-                },
-              ),
-              SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _submitPrice,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: Size(double.infinity, 50),
-                ),
-                child: Text('Submit Price'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _itemController.dispose();
-    _priceController.dispose();
-    _storeController.dispose();
-    super.dispose();
   }
 }

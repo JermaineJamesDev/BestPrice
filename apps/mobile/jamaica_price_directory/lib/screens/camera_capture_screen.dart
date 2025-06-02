@@ -7,6 +7,7 @@ import 'package:jamaica_price_directory/screens/enhanced_photo_preview_screen.da
 import '../services/consolidated_ocr_service.dart';
 import '../utils/camera_error_handler.dart';
 import '../services/ocr_error_handler.dart';
+import 'gallery_picker_screen.dart';
 
 class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
@@ -164,7 +165,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         );
       }
 
-      _cameras = await CameraErrorHandler.handleCameraOperation<List<CameraDescription>>(
+      _cameras =
+          await CameraErrorHandler.handleCameraOperation<
+            List<CameraDescription>
+          >(
             () => availableCameras(),
             onError: (error) {
               throw OCRException(
@@ -244,7 +248,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   void _processCameraImage(CameraImage image) {
     // If we're already processing the previous frame, drop this one:
     if (_isProcessingFrame) {
-      return; 
+      return;
     }
 
     _frameSkipCount++;
@@ -277,7 +281,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Future<void> _stopImageStream() async {
-    if (_cameraController != null && _cameraController!.value.isStreamingImages) {
+    if (_cameraController != null &&
+        _cameraController!.value.isStreamingImages) {
       try {
         await _cameraController!.stopImageStream();
       } catch (e) {
@@ -514,8 +519,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   Future<void> _updatePerformanceMetrics() async {
     if (!_isPerformanceMonitoringEnabled) return;
     try {
-      _currentMetrics =
-          await ConsolidatedOCRService.instance.getSystemMetrics();
+      _currentMetrics = await ConsolidatedOCRService.instance
+          .getSystemMetrics();
     } catch (e) {
       debugPrint('Failed to update performance metrics: $e');
     }
@@ -689,9 +694,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Widget _buildLoadingState() {
-    return const Center(
-      child: CircularProgressIndicator(color: Colors.white),
-    );
+    return const Center(child: CircularProgressIndicator(color: Colors.white));
   }
 
   Widget _buildPermissionState() {
@@ -740,14 +743,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   Widget _buildCameraPreview() {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return const Center(
-        child: Text('Initializing camera...', style: TextStyle(color: Colors.white)),
+        child: Text(
+          'Initializing camera...',
+          style: TextStyle(color: Colors.white),
+        ),
       );
     }
     return Stack(
-      children: [
-        CameraPreview(_cameraController!),
-        _buildCameraOverlay(),
-      ],
+      children: [CameraPreview(_cameraController!), _buildCameraOverlay()],
     );
   }
 
@@ -783,7 +786,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                       const SizedBox(height: 8),
                       Text(
                         'Performance: ${_getPerformanceStatus()}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ],
@@ -843,9 +849,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           children: [
             IconButton(
               onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Gallery picker coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GalleryPickerScreen(),
+                  ),
                 );
               },
               icon: const Icon(
@@ -853,6 +861,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 color: Colors.white,
                 size: 32,
               ),
+              tooltip: 'Select from Gallery',
             ),
             GestureDetector(
               onTap: _isCapturing ? null : _capturePhoto,
@@ -877,6 +886,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 Navigator.pushNamed(context, '/manual_entry');
               },
               icon: const Icon(Icons.edit, color: Colors.white, size: 32),
+              tooltip: 'Manual Entry',
             ),
           ],
         ),
@@ -896,10 +906,7 @@ class _TipWidget extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.white, size: 24),
         const SizedBox(height: 4),
-        Text(
-          text,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-        ),
+        Text(text, style: const TextStyle(color: Colors.white, fontSize: 12)),
       ],
     );
   }
@@ -920,16 +927,8 @@ class CameraOverlayPainter extends CustomPainter {
     const cornerLength = 30.0;
 
     // Top-left corner
-    canvas.drawLine(
-      Offset(left, top + cornerLength),
-      Offset(left, top),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(left, top),
-      Offset(left + cornerLength, top),
-      paint,
-    );
+    canvas.drawLine(Offset(left, top + cornerLength), Offset(left, top), paint);
+    canvas.drawLine(Offset(left, top), Offset(left + cornerLength, top), paint);
 
     // Top-right corner
     canvas.drawLine(
