@@ -14,7 +14,7 @@ class GalleryResultsScreen extends StatefulWidget {
   });
 
   @override
-  _GalleryResultsScreenState createState() => _GalleryResultsScreenState();
+  State<GalleryResultsScreen> createState() => _GalleryResultsScreenState();
 }
 
 class _GalleryResultsScreenState extends State<GalleryResultsScreen>
@@ -209,7 +209,7 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
       margin: EdgeInsets.symmetric(horizontal: 4),
       padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withAlpha((0.15 * 255).round()),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -227,7 +227,7 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withAlpha((0.9 * 255).round()),
               fontSize: 12,
             ),
             textAlign: TextAlign.center,
@@ -264,7 +264,7 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withAlpha((0.1 * 255).round()),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -290,34 +290,44 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedStore,
-                  decoration: InputDecoration(
-                    labelText: 'Store Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    prefixIcon: Icon(Icons.store),
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedStore,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Store Name',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      prefixIcon: Icon(Icons.store),
+                    ),
+                    items: _stores.map((store) {
+                      return DropdownMenuItem(value: store, child: Text(store));
+                    }).toList(),
+                    onChanged: (value) => setState(() => _selectedStore = value),
                   ),
-                  items: _stores.map((store) {
-                    return DropdownMenuItem(value: store, child: Text(store));
-                  }).toList(),
-                  onChanged: (value) => setState(() => _selectedStore = value),
                 ),
               ),
-              SizedBox(width: 12),
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedParish,
-                  decoration: InputDecoration(
-                    labelText: 'Parish',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    prefixIcon: Icon(Icons.location_on),
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedParish,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Parish',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      prefixIcon: Icon(Icons.location_on),
+                      isCollapsed: false,
+                    ),
+                    items: _parishes.map((parish) {
+                      return DropdownMenuItem(value: parish, child: Text(parish, overflow: TextOverflow.ellipsis));
+                    }).toList(),
+                    onChanged: (value) => setState(() => _selectedParish = value),
                   ),
-                  items: _parishes.map((parish) {
-                    return DropdownMenuItem(value: parish, child: Text(parish));
-                  }).toList(),
-                  onChanged: (value) => setState(() => _selectedParish = value),
                 ),
               ),
             ],
@@ -524,7 +534,7 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withAlpha((0.1 * 255).round()),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Icon(Icons.image, color: Colors.green),
@@ -603,7 +613,7 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _getConfidenceColor(price.confidence).withOpacity(0.1),
+                        color: _getConfidenceColor(price.confidence).withAlpha((0.1 * 255).round()),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -624,7 +634,7 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
             onPressed: () => _editPrice(resultIndex, priceIndex),
             icon: Icon(Icons.edit, size: 20),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.blue.withOpacity(0.1),
+              backgroundColor: Colors.blue.withAlpha((0.1 * 255).round()),
               foregroundColor: Colors.blue,
             ),
           ),
@@ -681,7 +691,7 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
         border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, -2),
@@ -812,6 +822,8 @@ class _GalleryResultsScreenState extends State<GalleryResultsScreen>
       
       _showSuccessDialog();
     } catch (e) {
+      // Before using `context` here, make sure we're still mounted:
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to submit: ${e.toString()}'),

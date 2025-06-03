@@ -96,6 +96,7 @@ class JamaicaPriceDirectoryApp extends StatelessWidget {
           currentRoute: '/profile',
           child: ProfileScreen(),
         ),
+        
       },
 
       // Starting screen

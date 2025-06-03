@@ -437,7 +437,7 @@ class OCRDebugScreen extends StatefulWidget {
   const OCRDebugScreen({super.key});
 
   @override
-  _OCRDebugScreenState createState() => _OCRDebugScreenState();
+  State<OCRDebugScreen> createState() => _OCRDebugScreenState();
 }
 
 class _OCRDebugScreenState extends State<OCRDebugScreen> {

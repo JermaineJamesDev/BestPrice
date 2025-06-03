@@ -12,7 +12,7 @@ class LongReceiptCaptureScreen extends StatefulWidget {
   const LongReceiptCaptureScreen({super.key});
 
   @override
-  _LongReceiptCaptureScreenState createState() =>
+  State<LongReceiptCaptureScreen> createState() =>
       _LongReceiptCaptureScreenState();
 }
 
@@ -309,6 +309,8 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
       }
     } catch (e) {
       debugPrint('Error processing all sections: $e');
+      // Before using `context` here, make sure we're still mounted:
+      if (!mounted) return;
       OCRErrorSnackBar.show(
         context,
         e,
@@ -380,7 +382,7 @@ class _LongReceiptCaptureScreenState extends State<LongReceiptCaptureScreen>
           opacity: _errorFadeAnimation.value,
           child: Container(
             width: double.infinity,
-            color: Colors.red.withOpacity(0.9),
+            color: Colors.red.withAlpha((0.9 * 255).round()),
             padding: const EdgeInsets.all(16),
             child: SafeArea(
               child: Column(

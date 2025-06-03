@@ -595,7 +595,7 @@ class OCRErrorBoundary extends StatefulWidget {
   });
 
   @override
-  _OCRErrorBoundaryState createState() => _OCRErrorBoundaryState();
+  State<OCRErrorBoundary> createState() => _OCRErrorBoundaryState();
 }
 
 class _OCRErrorBoundaryState extends State<OCRErrorBoundary> {

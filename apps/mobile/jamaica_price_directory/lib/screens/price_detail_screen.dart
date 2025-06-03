@@ -8,7 +8,7 @@ class PriceDetailScreen extends StatefulWidget {
   const PriceDetailScreen({super.key, required this.priceData});
   
   @override
-  _PriceDetailScreenState createState() => _PriceDetailScreenState();
+  State<PriceDetailScreen> createState() => _PriceDetailScreenState();
 }
 
 class _PriceDetailScreenState extends State<PriceDetailScreen> {
@@ -221,7 +221,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 6,
             offset: Offset(0, 2),
@@ -288,7 +288,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withAlpha((0.1 * 255).round()),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -509,7 +509,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 1),

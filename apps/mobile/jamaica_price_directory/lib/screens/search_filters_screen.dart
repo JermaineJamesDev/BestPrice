@@ -7,7 +7,7 @@ class SearchFiltersScreen extends StatefulWidget {
   const SearchFiltersScreen({super.key, required this.currentFilters});
   
   @override
-  _SearchFiltersScreenState createState() => _SearchFiltersScreenState();
+  State<SearchFiltersScreen> createState() => _SearchFiltersScreenState();
 }
 
 class _SearchFiltersScreenState extends State<SearchFiltersScreen> {
@@ -127,7 +127,7 @@ class _SearchFiltersScreenState extends State<SearchFiltersScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withAlpha((0.2 * 255).round()),
               spreadRadius: 1,
               blurRadius: 4,
               offset: Offset(0, -2),
@@ -322,7 +322,7 @@ class _SearchFiltersScreenState extends State<SearchFiltersScreen> {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 1),

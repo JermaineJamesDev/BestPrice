@@ -23,7 +23,7 @@ class EnhancedOCRResultsScreen extends StatefulWidget {
   });
 
   @override
-  _EnhancedOCRResultsScreenState createState() =>
+  State<EnhancedOCRResultsScreen> createState() =>
       _EnhancedOCRResultsScreenState();
 }
 
@@ -239,7 +239,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
               Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withAlpha((0.2 * 255).round()),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -265,7 +265,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
       margin: EdgeInsets.symmetric(horizontal: 4),
       padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withAlpha((0.15 * 255).round()),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -283,7 +283,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withAlpha((0.9 * 255).round()),
               fontSize: 12,
             ),
           ),
@@ -338,7 +338,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withAlpha((0.1 * 255).round()),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -583,9 +583,9 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
         Container(
           height: 40,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withAlpha((0.1 * 255).round()),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.withAlpha((0.3 * 255).round())),
           ),
           child: Center(
             child: Text(
@@ -672,7 +672,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: _getCategoryColor(price.category).withOpacity(0.1),
+                      color: _getCategoryColor(price.category).withAlpha((0.1 * 255).round()),
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: Icon(
@@ -704,7 +704,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
                           decoration: BoxDecoration(
                             color: _getCategoryColor(
                               price.category,
-                            ).withOpacity(0.1),
+                            ).withAlpha((0.1 * 255).round()),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -828,9 +828,9 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha((0.1 * 255).round()),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withAlpha((0.3 * 255).round())),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -867,7 +867,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
           icon: Icon(Icons.edit, size: 20),
           tooltip: 'Edit',
           style: IconButton.styleFrom(
-            backgroundColor: Colors.blue.withOpacity(0.1),
+            backgroundColor: Colors.blue.withAlpha((0.1 * 255).round()),
             foregroundColor: Colors.blue,
           ),
         ),
@@ -877,7 +877,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
           icon: Icon(Icons.delete, size: 20),
           tooltip: 'Remove',
           style: IconButton.styleFrom(
-            backgroundColor: Colors.red.withOpacity(0.1),
+            backgroundColor: Colors.red.withAlpha((0.1 * 255).round()),
             foregroundColor: Colors.red,
           ),
         ),
@@ -1225,6 +1225,8 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
 
       _showSuccessDialog();
     } catch (e) {
+      // Before using `context` here, make sure we're still mounted:
+        if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to submit: ${e.toString()}'),
@@ -1305,7 +1307,7 @@ class _EnhancedOCRResultsScreenState extends State<EnhancedOCRResultsScreen>
         border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, -2),

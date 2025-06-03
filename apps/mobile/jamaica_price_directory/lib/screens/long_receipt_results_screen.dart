@@ -14,7 +14,7 @@ class LongReceiptResultsScreen extends StatefulWidget {
   });
 
   @override
-  _LongReceiptResultsScreenState createState() =>
+  State<LongReceiptResultsScreen> createState() =>
       _LongReceiptResultsScreenState();
 }
 
@@ -204,7 +204,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withAlpha((0.2 * 255).round()),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Icon(Icons.receipt_long, color: Colors.white, size: 30),
@@ -226,7 +226,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                     Text(
                       'Advanced OCR with section merging',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withAlpha((0.9 * 255).round()),
                         fontSize: 14,
                       ),
                     ),
@@ -239,7 +239,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
           Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withAlpha((0.15 * 255).round()),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -254,7 +254,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                 Container(
                   width: 1,
                   height: 40,
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withAlpha((0.3 * 255).round()),
                 ),
                 Expanded(
                   child: _buildSummaryItem(
@@ -266,7 +266,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                 Container(
                   width: 1,
                   height: 40,
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withAlpha((0.3 * 255).round()),
                 ),
                 Expanded(
                   child: _buildSummaryItem(
@@ -298,7 +298,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.9)),
+          style: TextStyle(fontSize: 12, color: Colors.white.withAlpha((0.9 * 255).round())),
           textAlign: TextAlign.center,
         ),
       ],
@@ -366,7 +366,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: _getCategoryColor(price.category).withOpacity(0.1),
+                      color: _getCategoryColor(price.category).withAlpha((0.1 * 255).round()),
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: Icon(
@@ -398,7 +398,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                           decoration: BoxDecoration(
                             color: _getCategoryColor(
                               price.category,
-                            ).withOpacity(0.1),
+                            ).withAlpha((0.1 * 255).round()),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -446,7 +446,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
                     onPressed: () => _editPriceItem(index),
                     icon: Icon(Icons.edit, size: 20),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.blue.withOpacity(0.1),
+                      backgroundColor: Colors.blue.withAlpha((0.1 * 255).round()),
                       foregroundColor: Colors.blue,
                     ),
                   ),
@@ -525,9 +525,9 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha((0.1 * 255).round()),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withAlpha((0.3 * 255).round())),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -935,6 +935,8 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
 
       _showSuccessDialog();
     } catch (e) {
+      // Before using `context` here, make sure we're still mounted:
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to submit: ${e.toString()}'),
@@ -1015,7 +1017,7 @@ class _LongReceiptResultsScreenState extends State<LongReceiptResultsScreen> {
         border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, -2),

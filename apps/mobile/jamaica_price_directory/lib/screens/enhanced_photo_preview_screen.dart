@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../services/consolidated_ocr_service.dart' hide OCRException;
+import '../services/consolidated_ocr_service.dart';
 import '../services/ocr_error_handler.dart';
 import 'enhanced_ocr_results_screen.dart';
 
@@ -18,7 +18,7 @@ class EnhancedPhotoPreviewScreen extends StatefulWidget {
   });
 
   @override
-  _EnhancedPhotoPreviewScreenState createState() =>
+  State<EnhancedPhotoPreviewScreen> createState() =>
       _EnhancedPhotoPreviewScreenState();
 }
 
@@ -468,7 +468,7 @@ class _EnhancedPhotoPreviewScreenState
       margin: EdgeInsets.all(16),
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withAlpha((0.1 * 255).round()),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -524,9 +524,9 @@ class _EnhancedPhotoPreviewScreenState
       margin: EdgeInsets.all(16),
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withAlpha((0.1 * 255).round()),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withAlpha((0.3 * 255).round())),
       ),
       child: Row(
         children: [

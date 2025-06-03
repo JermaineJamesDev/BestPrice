@@ -13,7 +13,7 @@ class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
 
   @override
-  _CameraCaptureScreenState createState() => _CameraCaptureScreenState();
+  State<CameraCaptureScreen> createState() => _CameraCaptureScreenState();
 }
 
 class _CameraCaptureScreenState extends State<CameraCaptureScreen>
@@ -631,7 +631,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.9),
+              color: Colors.red.withAlpha((0.9 * 255).round()),
               borderRadius: BorderRadius.circular(8),
             ),
             child: SafeArea(
@@ -767,7 +767,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                  colors: [Colors.black.withAlpha((0.7 * 255).round()), Colors.transparent],
                 ),
               ),
               child: SafeArea(
@@ -804,7 +804,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                  colors: [Colors.black.withAlpha((0.7 * 255).round()), Colors.transparent],
                 ),
               ),
               child: const SafeArea(

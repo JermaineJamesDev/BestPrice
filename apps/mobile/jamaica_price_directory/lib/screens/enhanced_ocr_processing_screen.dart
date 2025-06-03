@@ -19,7 +19,7 @@ class EnhancedOCRProcessingScreen extends StatefulWidget {
   });
 
   @override
-  _EnhancedOCRProcessingScreenState createState() =>
+  State<EnhancedOCRProcessingScreen> createState() =>
       _EnhancedOCRProcessingScreenState();
 }
 
@@ -267,7 +267,7 @@ class _EnhancedOCRProcessingScreenState
                       border: Border.all(color: Color(0xFF1E3A8A), width: 3),
                       gradient: RadialGradient(
                         colors: [
-                          Color(0xFF1E3A8A).withOpacity(0.2),
+                          Color(0xFF1E3A8A).withAlpha((0.2 * 255).round()),
                           Colors.transparent,
                         ],
                       ),
@@ -431,7 +431,7 @@ class _EnhancedOCRProcessingScreenState
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[900]!.withOpacity(0.7),
+        color: Colors.grey[900]!.withAlpha((0.7 * 255).round()),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey[800]!),
       ),

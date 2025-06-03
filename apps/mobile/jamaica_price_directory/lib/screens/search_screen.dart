@@ -6,7 +6,7 @@ class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  _SearchScreenState createState() => _SearchScreenState();
+  State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
@@ -126,7 +126,7 @@ class _SearchScreenState extends State<SearchScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 6,
             offset: Offset(0, 2),
@@ -221,7 +221,7 @@ class _SearchScreenState extends State<SearchScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withAlpha((0.1 * 255).round()),
               spreadRadius: 1,
               blurRadius: 4,
               offset: Offset(0, 1),
@@ -235,7 +235,7 @@ class _SearchScreenState extends State<SearchScreen> {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: category['color'].withOpacity(0.1),
+                color: category['color'].withAlpha((0.1 * 255).round()),
                 borderRadius: BorderRadius.circular(25),
               ),
               child: Icon(
@@ -292,7 +292,7 @@ class _SearchScreenState extends State<SearchScreen> {
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.grey.withAlpha((0.1 * 255).round()),
                 spreadRadius: 1,
                 blurRadius: 4,
                 offset: Offset(0, 1),
@@ -353,10 +353,10 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Color(0xFF1E3A8A).withOpacity(0.1),
+                  color: Color(0xFF1E3A8A).withAlpha((0.1 * 255).round()),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: Color(0xFF1E3A8A).withOpacity(0.3),
+                    color: Color(0xFF1E3A8A).withAlpha((0.3 * 255).round()),
                   ),
                 ),
                 child: Row(

@@ -7,7 +7,7 @@ class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
 // State class - handles the screen's changing data and behavior
@@ -76,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen> {
               'Find the best prices across Jamaica',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.8),
+                color: Color.fromRGBO(255, 255, 255, 0.8),
               ),
               textAlign: TextAlign.center,
             ),

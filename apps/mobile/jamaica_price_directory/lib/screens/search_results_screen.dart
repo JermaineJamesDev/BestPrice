@@ -10,7 +10,7 @@ class SearchResultsScreen extends StatefulWidget {
   const SearchResultsScreen({super.key, required this.searchQuery});
   
   @override
-  _SearchResultsScreenState createState() => _SearchResultsScreenState();
+  State<SearchResultsScreen> createState() => _SearchResultsScreenState();
 }
 
 class _SearchResultsScreenState extends State<SearchResultsScreen> {
@@ -382,7 +382,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: Color(0xFF1E3A8A).withOpacity(0.1),
+                    color: Color(0xFF1E3A8A).withAlpha((0.1 * 255).round()),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -444,7 +444,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
+                                color: Colors.green.withAlpha((0.1 * 255).round()),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(

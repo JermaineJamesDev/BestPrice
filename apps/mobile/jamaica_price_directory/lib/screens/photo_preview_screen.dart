@@ -8,7 +8,7 @@ class PhotoPreviewScreen extends StatefulWidget {
   const PhotoPreviewScreen({super.key, required this.imagePath});
 
   @override
-  _PhotoPreviewScreenState createState() => _PhotoPreviewScreenState();
+  State<PhotoPreviewScreen> createState() => _PhotoPreviewScreenState();
 }
 
 class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
@@ -164,6 +164,8 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     }
     
     if (_imageFile != null) {
+      // Before using `context` here, make sure we're still mounted:
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -318,7 +320,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
                   if (_isProcessing)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withAlpha((0.7 * 255).round()),
                         child: const Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,

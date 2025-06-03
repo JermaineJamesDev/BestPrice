@@ -8,7 +8,7 @@ class EnhancedCameraScreen extends StatefulWidget {
   const EnhancedCameraScreen({super.key});
 
   @override
-  _EnhancedCameraScreenState createState() => _EnhancedCameraScreenState();
+  State<EnhancedCameraScreen> createState() => _EnhancedCameraScreenState();
 }
 
 class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
@@ -77,7 +77,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 6,
             offset: Offset(0, 2),
@@ -144,7 +144,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Color(0xFF1E3A8A).withOpacity(0.3),
+                  color: Color(0xFF1E3A8A).withAlpha((0.3 * 255).round()),
                   spreadRadius: 1,
                   blurRadius: 8,
                   offset: Offset(0, 4),
@@ -168,7 +168,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                   'Single capture for regular-sized receipts',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withAlpha((0.9 * 255).round()),
                   ),
                 ),
               ],
@@ -191,7 +191,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Color(0xFF059669).withOpacity(0.3),
+                  color: Color(0xFF059669).withAlpha((0.3 * 255).round()),
                   spreadRadius: 1,
                   blurRadius: 8,
                   offset: Offset(0, 4),
@@ -215,7 +215,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                   'Multi-section capture for extra long receipts',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withAlpha((0.9 * 255).round()),
                   ),
                 ),
               ],
@@ -256,7 +256,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 1),
@@ -313,9 +313,9 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withAlpha((0.05 * 255).round()),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withAlpha((0.2 * 255).round())),
       ),
       child: Row(
         children: [
@@ -323,7 +323,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withAlpha((0.1 * 255).round()),
               borderRadius: BorderRadius.circular(25),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -398,10 +398,10 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Color(0xFF1E3A8A).withOpacity(0.2)),
+          border: Border.all(color: Color(0xFF1E3A8A).withAlpha((0.2 * 255).round())),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withAlpha((0.1 * 255).round()),
               spreadRadius: 1,
               blurRadius: 4,
               offset: Offset(0, 1),
@@ -440,7 +440,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 1),
@@ -502,7 +502,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Color(0xFF1E3A8A).withOpacity(0.1),
+              color: Color(0xFF1E3A8A).withAlpha((0.1 * 255).round()),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Center(
@@ -585,7 +585,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 1),

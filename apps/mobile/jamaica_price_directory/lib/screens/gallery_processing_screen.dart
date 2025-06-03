@@ -18,7 +18,7 @@ class GalleryProcessingScreen extends StatefulWidget {
   });
 
   @override
-  _GalleryProcessingScreenState createState() => _GalleryProcessingScreenState();
+  State<GalleryProcessingScreen> createState() => _GalleryProcessingScreenState();
 }
 
 class _GalleryProcessingScreenState extends State<GalleryProcessingScreen>
@@ -361,7 +361,7 @@ class _GalleryProcessingScreenState extends State<GalleryProcessingScreen>
                       border: Border.all(color: Color(0xFF1E3A8A), width: 3),
                       gradient: RadialGradient(
                         colors: [
-                          Color(0xFF1E3A8A).withOpacity(0.2),
+                          Color(0xFF1E3A8A).withAlpha((0.2 * 255).round()),
                           Colors.transparent,
                         ],
                       ),

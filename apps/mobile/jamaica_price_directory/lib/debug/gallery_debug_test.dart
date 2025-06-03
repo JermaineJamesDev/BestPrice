@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:image/image.dart' as img;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../services/file_picker_service.dart';
 
 class GalleryDebugScreen extends StatefulWidget {
+  const GalleryDebugScreen({super.key});
+
   @override
-  _GalleryDebugScreenState createState() => _GalleryDebugScreenState();
+  State<GalleryDebugScreen> createState() => _GalleryDebugScreenState();
 }
 
 class _GalleryDebugScreenState extends State<GalleryDebugScreen> {
-  List<String> _debugLogs = [];
+  final List<String> _debugLogs = [];
   bool _isRunning = false;
 
   void _addLog(String message) {

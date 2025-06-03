@@ -640,7 +640,7 @@ class ConsolidatedOCRService {
       // If all approaches failed, throw the last exception
       debugPrint('❌ All OCR approaches failed');
       throw OCRException(
-        'OCR processing failed after multiple attempts: ${lastException?.toString() ?? "Unknown error"}',
+        'OCR processing failed after multiple attempts: ${lastException.toString() ?? "Unknown error"}',
         type: OCRErrorType.processingFailed,
       );
     } catch (e) {

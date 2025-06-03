@@ -5,7 +5,7 @@ class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  _RegisterScreenState createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
@@ -58,10 +58,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await Future.delayed(Duration(seconds: 2));
       
       // In a real app, you would send this data to your server
-      print('Registration Data:');
-      print('Name: ${_firstNameController.text} ${_lastNameController.text}');
-      print('Email: ${_emailController.text}');
-      print('Parish: $_selectedParish');
+      debugPrint('Registration Data:');
+      debugPrint('Name: ${_firstNameController.text} ${_lastNameController.text}');
+      debugPrint('Email: ${_emailController.text}');
+      debugPrint('Parish: $_selectedParish');
       
       // Mock successful registration
       _showSuccessDialog();

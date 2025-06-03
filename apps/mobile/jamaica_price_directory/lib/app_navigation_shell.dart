@@ -11,7 +11,7 @@ class AppNavigationShell extends StatefulWidget {
   });
   
   @override
-  _AppNavigationShellState createState() => _AppNavigationShellState();
+  State<AppNavigationShell> createState() => _AppNavigationShellState();
 }
 
 class _AppNavigationShellState extends State<AppNavigationShell> {
@@ -99,7 +99,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.3),
+              color: Colors.grey.withAlpha((0.3 * 255).round()),
               spreadRadius: 1,
               blurRadius: 5,
               offset: Offset(0, -2),

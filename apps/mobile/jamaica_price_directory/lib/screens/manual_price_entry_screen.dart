@@ -4,7 +4,7 @@ class ManualPriceEntryScreen extends StatefulWidget {
   const ManualPriceEntryScreen({super.key});
 
   @override
-  _ManualPriceEntryScreenState createState() => _ManualPriceEntryScreenState();
+  State<ManualPriceEntryScreen> createState() => _ManualPriceEntryScreenState();
 }
 
 class _ManualPriceEntryScreenState extends State<ManualPriceEntryScreen> {
@@ -126,7 +126,7 @@ class _ManualPriceEntryScreenState extends State<ManualPriceEntryScreen> {
                           Text(
                             'Add price information directly',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withAlpha((0.9 * 255).round()),
                               fontSize: 14,
                             ),
                           ),

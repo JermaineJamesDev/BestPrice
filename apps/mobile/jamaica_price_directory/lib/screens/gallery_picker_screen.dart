@@ -9,7 +9,7 @@ class GalleryPickerScreen extends StatefulWidget {
   const GalleryPickerScreen({super.key});
 
   @override
-  _GalleryPickerScreenState createState() => _GalleryPickerScreenState();
+  State<GalleryPickerScreen> createState() => _GalleryPickerScreenState();
 }
 
 class _GalleryPickerScreenState extends State<GalleryPickerScreen> {
@@ -401,7 +401,7 @@ class _GalleryPickerScreenState extends State<GalleryPickerScreen> {
         border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha((0.1 * 255).round()),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, -2),
@@ -472,7 +472,9 @@ class _GalleryPickerScreenState extends State<GalleryPickerScreen> {
         setState(() {
           _selectedFiles = fileInfo;
         });
-        
+
+        // Before using `context` here, make sure we're still mounted:
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Selected ${fileInfo.length} image${fileInfo.length == 1 ? '' : 's'}'),

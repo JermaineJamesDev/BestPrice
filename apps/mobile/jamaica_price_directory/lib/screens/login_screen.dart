@@ -5,7 +5,7 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
@@ -41,7 +41,10 @@ class _LoginScreenState extends State<LoginScreen> {
       // Mock authentication - in real app, send to server
       if (email == 'user@example.com' && password == 'password123') {
         // Login successful - go to home screen
-        Navigator.pushReplacementNamed(context, '/home');
+        // Before using `context` here, make sure we're still mounted:
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       } else {
         // Login failed - show error message
         _showErrorDialog('Invalid email or password');
