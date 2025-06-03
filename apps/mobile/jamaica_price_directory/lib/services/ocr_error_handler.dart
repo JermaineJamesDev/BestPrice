@@ -58,27 +58,47 @@ class OCRErrorContext {
 
 class OCRErrorHandler {
   static const Map<OCRErrorType, String> _errorMessages = {
-    OCRErrorType.imageNotFound: 'Image file not found. Please try taking a new photo.',
-    OCRErrorType.imageCorrupted: 'Image file is corrupted. Please capture a new image.',
-    OCRErrorType.imageTooLarge: 'Image file is too large. Please try with lower resolution.',
-    OCRErrorType.imageTooSmall: 'Image is too small or has insufficient detail. Please capture a closer image.',
-    OCRErrorType.imageFormatUnsupported: 'Image format not supported. Please use JPEG or PNG.',
-    OCRErrorType.inputImageConverterError: 'Image format incompatible with text recognition. Please try capturing a new photo.',
-    OCRErrorType.mlKitInitializationError: 'Text recognition service failed to initialize. Please restart the app.',
-    OCRErrorType.ocrTimeout: 'Text recognition timed out. Please try with better lighting or clearer image.',
-    OCRErrorType.ocrServiceUnavailable: 'Text recognition service temporarily unavailable.',
-    OCRErrorType.lowImageQuality: 'Image quality too low for accurate text recognition. Please improve lighting and focus.',
-    OCRErrorType.noTextDetected: 'No text detected in image. Please ensure the receipt is clearly visible.',
-    OCRErrorType.processingFailed: 'Processing failed. Please try again with a different angle or lighting.',
-    OCRErrorType.cameraPermissionDenied: 'Camera permission required. Please enable in Settings.',
+    OCRErrorType.imageNotFound:
+        'Image file not found. Please try taking a new photo.',
+    OCRErrorType.imageCorrupted:
+        'Image file is corrupted. Please capture a new image.',
+    OCRErrorType.imageTooLarge:
+        'Image file is too large. Please try with lower resolution.',
+    OCRErrorType.imageTooSmall:
+        'Image is too small or has insufficient detail. Please capture a closer image.',
+    OCRErrorType.imageFormatUnsupported:
+        'Image format not supported. Please use JPEG or PNG.',
+    OCRErrorType.inputImageConverterError:
+        'Image format incompatible with text recognition. Please try capturing a new photo.',
+    OCRErrorType.mlKitInitializationError:
+        'Text recognition service failed to initialize. Please restart the app.',
+    OCRErrorType.ocrTimeout:
+        'Text recognition timed out. Please try with better lighting or clearer image.',
+    OCRErrorType.ocrServiceUnavailable:
+        'Text recognition service temporarily unavailable.',
+    OCRErrorType.lowImageQuality:
+        'Image quality too low for accurate text recognition. Please improve lighting and focus.',
+    OCRErrorType.noTextDetected:
+        'No text detected in image. Please ensure the receipt is clearly visible.',
+    OCRErrorType.processingFailed:
+        'Processing failed. Please try again with a different angle or lighting.',
+    OCRErrorType.cameraPermissionDenied:
+        'Camera permission required. Please enable in Settings.',
     OCRErrorType.cameraNotAvailable: 'Camera not available on this device.',
-    OCRErrorType.cameraInitializationFailed: 'Failed to initialize camera. Please try again.',
-    OCRErrorType.lowMemory: 'Insufficient memory to process image. Please close other apps and try again.',
-    OCRErrorType.storageInsufficient: 'Insufficient storage space. Please free up space and try again.',
-    OCRErrorType.networkUnavailable: 'Network connection required for enhanced processing.',
-    OCRErrorType.longReceiptSectionFailed: 'Failed to process receipt section. Please try capturing individual sections.',
-    OCRErrorType.longReceiptMergeFailed: 'Failed to merge receipt sections. Please try standard capture mode.',
-    OCRErrorType.insufficientSections: 'Insufficient sections captured. Please capture more sections for better results.',
+    OCRErrorType.cameraInitializationFailed:
+        'Failed to initialize camera. Please try again.',
+    OCRErrorType.lowMemory:
+        'Insufficient memory to process image. Please close other apps and try again.',
+    OCRErrorType.storageInsufficient:
+        'Insufficient storage space. Please free up space and try again.',
+    OCRErrorType.networkUnavailable:
+        'Network connection required for enhanced processing.',
+    OCRErrorType.longReceiptSectionFailed:
+        'Failed to process receipt section. Please try capturing individual sections.',
+    OCRErrorType.longReceiptMergeFailed:
+        'Failed to merge receipt sections. Please try standard capture mode.',
+    OCRErrorType.insufficientSections:
+        'Insufficient sections captured. Please capture more sections for better results.',
     OCRErrorType.unknown: 'An unexpected error occurred. Please try again.',
   };
 
@@ -88,15 +108,29 @@ class OCRErrorHandler {
     OCRErrorType.imageTooLarge: ['Retake with Lower Quality', 'Manual Entry'],
     OCRErrorType.imageTooSmall: ['Retake Closer', 'Use Long Receipt Mode'],
     OCRErrorType.imageFormatUnsupported: ['Retake Photo', 'Manual Entry'],
-    OCRErrorType.inputImageConverterError: ['Retake Photo', 'Try Different Angle', 'Manual Entry'],
+    OCRErrorType.inputImageConverterError: [
+      'Retake Photo',
+      'Try Different Angle',
+      'Manual Entry',
+    ],
     OCRErrorType.mlKitInitializationError: ['Restart App', 'Manual Entry'],
-    OCRErrorType.lowImageQuality: ['Improve Lighting', 'Retake Photo', 'Manual Entry'],
+    OCRErrorType.lowImageQuality: [
+      'Improve Lighting',
+      'Retake Photo',
+      'Manual Entry',
+    ],
     OCRErrorType.noTextDetected: ['Retake with Better Angle', 'Manual Entry'],
     OCRErrorType.cameraPermissionDenied: ['Open Settings', 'Manual Entry'],
     OCRErrorType.cameraNotAvailable: ['Manual Entry', 'Gallery Upload'],
     OCRErrorType.lowMemory: ['Close Apps & Retry', 'Manual Entry'],
-    OCRErrorType.longReceiptSectionFailed: ['Try Standard Mode', 'Manual Entry'],
-    OCRErrorType.longReceiptMergeFailed: ['Retake Sections', 'Try Standard Mode'],
+    OCRErrorType.longReceiptSectionFailed: [
+      'Try Standard Mode',
+      'Manual Entry',
+    ],
+    OCRErrorType.longReceiptMergeFailed: [
+      'Retake Sections',
+      'Try Standard Mode',
+    ],
   };
 
   static const Set<OCRErrorType> _retryableErrors = {
@@ -107,7 +141,8 @@ class OCRErrorHandler {
     OCRErrorType.lowMemory,
     OCRErrorType.networkUnavailable,
     OCRErrorType.longReceiptSectionFailed,
-    OCRErrorType.inputImageConverterError, // This can be retryable with different image
+    OCRErrorType
+        .inputImageConverterError, // This can be retryable with different image
   };
 
   static const Set<OCRErrorType> _criticalErrors = {
@@ -117,7 +152,10 @@ class OCRErrorHandler {
     OCRErrorType.mlKitInitializationError,
   };
 
-  static OCRErrorType categorizeError(dynamic error, {OCRErrorContext? context}) {
+  static OCRErrorType categorizeError(
+    dynamic error, {
+    OCRErrorContext? context,
+  }) {
     if (error is OCRException) {
       return _categorizeOCRException(error);
     }
@@ -142,17 +180,20 @@ class OCRErrorHandler {
     final errorString = error.toString().toLowerCase();
 
     // Check for ML Kit specific errors
-    if (errorString.contains('inputimageconvertererror') || 
+    if (errorString.contains('inputimageconvertererror') ||
         errorString.contains('imageformat is not supported')) {
       return OCRErrorType.inputImageConverterError;
     }
 
-    if (errorString.contains('ml kit') && errorString.contains('initialization')) {
+    if (errorString.contains('ml kit') &&
+        errorString.contains('initialization')) {
       return OCRErrorType.mlKitInitializationError;
     }
 
     // Check for common error patterns
-    if (errorString.contains('memory') || errorString.contains('heap') || errorString.contains('oom')) {
+    if (errorString.contains('memory') ||
+        errorString.contains('heap') ||
+        errorString.contains('oom')) {
       return OCRErrorType.lowMemory;
     }
 
@@ -160,7 +201,9 @@ class OCRErrorHandler {
       return OCRErrorType.networkUnavailable;
     }
 
-    if (errorString.contains('corrupted') || errorString.contains('invalid') || errorString.contains('decode')) {
+    if (errorString.contains('corrupted') ||
+        errorString.contains('invalid') ||
+        errorString.contains('decode')) {
       return OCRErrorType.imageCorrupted;
     }
 
@@ -172,15 +215,19 @@ class OCRErrorHandler {
       return OCRErrorType.noTextDetected;
     }
 
-    if (errorString.contains('file not found') || errorString.contains('not found')) {
+    if (errorString.contains('file not found') ||
+        errorString.contains('not found')) {
       return OCRErrorType.imageNotFound;
     }
 
-    if (errorString.contains('too large') || errorString.contains('size exceeded')) {
+    if (errorString.contains('too large') ||
+        errorString.contains('size exceeded')) {
       return OCRErrorType.imageTooLarge;
     }
 
-    if (errorString.contains('format') && (errorString.contains('unsupported') || errorString.contains('invalid'))) {
+    if (errorString.contains('format') &&
+        (errorString.contains('unsupported') ||
+            errorString.contains('invalid'))) {
       return OCRErrorType.imageFormatUnsupported;
     }
 
@@ -192,7 +239,10 @@ class OCRErrorHandler {
     return _errorMessages[errorType] ?? _errorMessages[OCRErrorType.unknown]!;
   }
 
-  static List<String> getSuggestedActions(dynamic error, {OCRErrorContext? context}) {
+  static List<String> getSuggestedActions(
+    dynamic error, {
+    OCRErrorContext? context,
+  }) {
     final errorType = categorizeError(error, context: context);
     return _suggestedActions[errorType] ?? ['Retry', 'Manual Entry'];
   }
@@ -213,7 +263,7 @@ class OCRErrorHandler {
     }
 
     final message = error.message.toLowerCase();
-    
+
     if (message.contains('not found')) return OCRErrorType.imageNotFound;
     if (message.contains('corrupted')) return OCRErrorType.imageCorrupted;
     if (message.contains('too large')) return OCRErrorType.imageTooLarge;
@@ -221,7 +271,7 @@ class OCRErrorHandler {
     if (message.contains('timeout')) return OCRErrorType.ocrTimeout;
     if (message.contains('no text')) return OCRErrorType.noTextDetected;
     if (message.contains('format')) return OCRErrorType.imageFormatUnsupported;
-    
+
     return OCRErrorType.processingFailed;
   }
 
@@ -250,7 +300,8 @@ class OCRErrorHandler {
         if (message.contains('imageformat is not supported')) {
           return OCRErrorType.inputImageConverterError;
         }
-        if (message.contains('ml kit') || message.contains('text recognition')) {
+        if (message.contains('ml kit') ||
+            message.contains('text recognition')) {
           return OCRErrorType.processingFailed;
         }
         return OCRErrorType.unknown;
@@ -275,9 +326,11 @@ class OCRErrorHandler {
     }
   }
 
-  static OCRErrorType _categorizeFileSystemException(FileSystemException error) {
+  static OCRErrorType _categorizeFileSystemException(
+    FileSystemException error,
+  ) {
     final message = error.message.toLowerCase();
-    
+
     if (message.contains('no space') || message.contains('disk full')) {
       return OCRErrorType.storageInsufficient;
     }
@@ -287,7 +340,7 @@ class OCRErrorHandler {
     if (message.contains('permission')) {
       return OCRErrorType.storageInsufficient; // Treat as storage issue
     }
-    
+
     return OCRErrorType.unknown;
   }
 
@@ -297,7 +350,7 @@ class OCRErrorHandler {
     StackTrace? stackTrace,
   }) {
     final errorType = categorizeError(error, context: context);
-    
+
     if (kDebugMode) {
       debugPrint('🚨 OCR Error: $errorType');
       debugPrint('   Message: ${getErrorMessage(error, context: context)}');
@@ -354,7 +407,10 @@ class OCRErrorRecovery {
           onError(error, attempt);
         }
 
-        final errorType = OCRErrorHandler.categorizeError(error, context: context);
+        final errorType = OCRErrorHandler.categorizeError(
+          error,
+          context: context,
+        );
 
         // Don't retry critical errors
         if (OCRErrorHandler.isCritical(error, context: context)) {
@@ -362,7 +418,8 @@ class OCRErrorRecovery {
         }
 
         // Don't retry if max attempts reached or error is not retryable
-        if (attempt >= maxAttempts || !OCRErrorHandler.isRetryable(error, context: context)) {
+        if (attempt >= maxAttempts ||
+            !OCRErrorHandler.isRetryable(error, context: context)) {
           break;
         }
 
@@ -372,7 +429,7 @@ class OCRErrorRecovery {
 
         // Apply recovery strategy before retrying
         await _applyRecoveryStrategy(error, errorType, attempt);
-        
+
         // Progressive delay
         await Future.delayed(baseRetryDelay * attempt);
       }
@@ -390,29 +447,31 @@ class OCRErrorRecovery {
       case OCRErrorType.lowMemory:
         await _forceGarbageCollection();
         break;
-        
+
       case OCRErrorType.cameraInitializationFailed:
         await _resetCameraState();
         break;
-        
+
       case OCRErrorType.inputImageConverterError:
-        debugPrint('🔄 Image converter error - attempt $attempt will use different processing method');
+        debugPrint(
+          '🔄 Image converter error - attempt $attempt will use different processing method',
+        );
         await Future.delayed(Duration(milliseconds: 500));
         break;
-        
+
       case OCRErrorType.ocrTimeout:
         debugPrint('🔄 Increasing timeout for attempt $attempt');
         break;
-        
+
       case OCRErrorType.networkUnavailable:
         await _waitForNetwork();
         break;
-        
+
       case OCRErrorType.mlKitInitializationError:
         debugPrint('🔄 ML Kit initialization error - waiting before retry');
         await Future.delayed(Duration(seconds: 2));
         break;
-        
+
       default:
         await Future.delayed(Duration(milliseconds: 500));
         break;
@@ -422,7 +481,7 @@ class OCRErrorRecovery {
   static Future<void> _forceGarbageCollection() async {
     debugPrint('🧹 Forcing garbage collection...');
     final List<List<int>> memoryPressure = [];
-    
+
     try {
       // Create temporary memory pressure to trigger GC
       for (int i = 0; i < 10; i++) {
@@ -433,7 +492,7 @@ class OCRErrorRecovery {
     } finally {
       memoryPressure.clear();
     }
-    
+
     await Future.delayed(Duration(milliseconds: 100));
   }
 
@@ -466,10 +525,22 @@ class OCRErrorDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final errorType = OCRErrorHandler.categorizeError(error, context: this.context);
-    final message = OCRErrorHandler.getErrorMessage(error, context: this.context);
-    final actions = OCRErrorHandler.getSuggestedActions(error, context: this.context);
-    final isRetryable = OCRErrorHandler.isRetryable(error, context: this.context);
+    final errorType = OCRErrorHandler.categorizeError(
+      error,
+      context: this.context,
+    );
+    final message = OCRErrorHandler.getErrorMessage(
+      error,
+      context: this.context,
+    );
+    final actions = OCRErrorHandler.getSuggestedActions(
+      error,
+      context: this.context,
+    );
+    final isRetryable = OCRErrorHandler.isRetryable(
+      error,
+      context: this.context,
+    );
     final isCritical = OCRErrorHandler.isCritical(error, context: this.context);
 
     return AlertDialog(
@@ -528,20 +599,11 @@ class OCRErrorDialog extends StatelessWidget {
       ),
       actions: [
         if (onDismiss != null)
-          TextButton(
-            onPressed: onDismiss,
-            child: Text('Dismiss'),
-          ),
+          TextButton(onPressed: onDismiss, child: Text('Dismiss')),
         if (onManualEntry != null)
-          TextButton(
-            onPressed: onManualEntry,
-            child: Text('Manual Entry'),
-          ),
+          TextButton(onPressed: onManualEntry, child: Text('Manual Entry')),
         if (isRetryable && onRetry != null)
-          ElevatedButton(
-            onPressed: onRetry,
-            child: Text('Retry'),
-          ),
+          ElevatedButton(onPressed: onRetry, child: Text('Retry')),
       ],
     );
   }
@@ -556,8 +618,14 @@ class OCRErrorSnackBar {
     VoidCallback? onAction,
     String? actionLabel,
   }) {
-    final message = OCRErrorHandler.getErrorMessage(error, context: errorContext);
-    final isRetryable = OCRErrorHandler.isRetryable(error, context: errorContext);
+    final message = OCRErrorHandler.getErrorMessage(
+      error,
+      context: errorContext,
+    );
+    final isRetryable = OCRErrorHandler.isRetryable(
+      error,
+      context: errorContext,
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -571,12 +639,12 @@ class OCRErrorSnackBar {
                 textColor: Colors.white,
               )
             : onAction != null
-                ? SnackBarAction(
-                    label: actionLabel ?? 'Action',
-                    onPressed: onAction,
-                    textColor: Colors.white,
-                  )
-                : null,
+            ? SnackBarAction(
+                label: actionLabel ?? 'Action',
+                onPressed: onAction,
+                textColor: Colors.white,
+              )
+            : null,
       ),
     );
   }
@@ -616,28 +684,18 @@ class _OCRErrorBoundaryState extends State<OCRErrorBoundary> {
 
   Widget _buildDefaultErrorWidget() {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Error'),
-        backgroundColor: Colors.red,
-      ),
+      appBar: AppBar(title: Text('Error'), backgroundColor: Colors.red),
       body: Center(
         child: Padding(
           padding: EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 80,
-                color: Colors.red,
-              ),
+              Icon(Icons.error_outline, size: 80, color: Colors.red),
               SizedBox(height: 16),
               Text(
                 'Something went wrong',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 8),
               Text(
@@ -672,10 +730,7 @@ class _OCRErrorBoundaryState extends State<OCRErrorBoundary> {
       widget.onError!(error, stackTrace);
     }
 
-    OCRErrorHandler.logError(
-      error,
-      stackTrace: stackTrace,
-    );
+    OCRErrorHandler.logError(error, stackTrace: stackTrace);
   }
 }
 
@@ -685,11 +740,7 @@ class OCRException implements Exception {
   final OCRErrorType? type;
   final Map<String, dynamic>? metadata;
 
-  OCRException(
-    this.message, {
-    this.type,
-    this.metadata,
-  });
+  OCRException(this.message, {this.type, this.metadata});
 
   @override
   String toString() => 'OCRException: $message';
@@ -705,11 +756,7 @@ extension FutureErrorHandling<T> on Future<T> {
     try {
       return await this;
     } catch (error, stackTrace) {
-      OCRErrorHandler.logError(
-        error,
-        context: context,
-        stackTrace: stackTrace,
-      );
+      OCRErrorHandler.logError(error, context: context, stackTrace: stackTrace);
 
       if (showSnackBar && snackBarContext != null) {
         OCRErrorSnackBar.show(snackBarContext, error, errorContext: context);
@@ -735,7 +782,9 @@ class OCRErrorUtils {
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text('Camera Permission Required'),
-          content: Text('Please enable camera access in Settings to scan receipts.'),
+          content: Text(
+            'Please enable camera access in Settings to scan receipts.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -794,8 +843,10 @@ class OCRErrorUtils {
     dynamic error, {
     VoidCallback? onRetry,
   }) {
-    final isInputConverterError = OCRErrorHandler.categorizeError(error) == OCRErrorType.inputImageConverterError;
-    
+    final isInputConverterError =
+        OCRErrorHandler.categorizeError(error) ==
+        OCRErrorType.inputImageConverterError;
+
     OCRErrorSnackBar.show(
       context,
       error,

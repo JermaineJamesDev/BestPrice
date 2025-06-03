@@ -4,9 +4,9 @@ import 'package:flutter/services.dart';
 // Enhanced Price Detail Screen - Shows comprehensive price information
 class PriceDetailScreen extends StatefulWidget {
   final Map<String, dynamic> priceData;
-  
+
   const PriceDetailScreen({super.key, required this.priceData});
-  
+
   @override
   State<PriceDetailScreen> createState() => _PriceDetailScreenState();
 }
@@ -14,20 +14,20 @@ class PriceDetailScreen extends StatefulWidget {
 class _PriceDetailScreenState extends State<PriceDetailScreen> {
   bool isLoading = true;
   bool isFavorite = false;
-  
+
   // Mock additional data that would come from API
   Map<String, dynamic> additionalData = {};
-  
+
   @override
   void initState() {
     super.initState();
     _loadAdditionalData();
   }
-  
+
   // Load additional price information (mock)
   Future<void> _loadAdditionalData() async {
     await Future.delayed(Duration(milliseconds: 800));
-    
+
     // Mock additional data
     setState(() {
       additionalData = {
@@ -42,7 +42,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       isLoading = false;
     });
   }
-  
+
   // Generate mock price history
   List<Map<String, dynamic>> _generatePriceHistory() {
     double currentPrice = widget.priceData['price'].toDouble();
@@ -52,12 +52,12 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       {'date': 'Today', 'price': currentPrice},
     ];
   }
-  
+
   // Generate mock nearby prices
   List<Map<String, dynamic>> _generateNearbyPrices() {
     String itemName = widget.priceData['item'];
     double currentPrice = widget.priceData['price'].toDouble();
-    
+
     return [
       {
         'store': 'SuperPlus',
@@ -73,7 +73,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       },
     ];
   }
-  
+
   // Generate mock store information
   Map<String, dynamic> _generateStoreInfo() {
     return {
@@ -84,7 +84,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       'reviewCount': 89,
     };
   }
-  
+
   // Toggle favorite status
   void _toggleFavorite() {
     setState(() {
@@ -92,30 +92,37 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isFavorite ? 'Added to favorites' : 'Removed from favorites'),
+        content: Text(
+          isFavorite ? 'Added to favorites' : 'Removed from favorites',
+        ),
         duration: Duration(seconds: 2),
       ),
     );
   }
-  
+
   // Share price information
   void _sharePrice() {
     // Mock sharing functionality
-    Clipboard.setData(ClipboardData(
-      text: '${widget.priceData['item']} - J\$${widget.priceData['price']} at ${widget.priceData['store']} (Jamaica Price Directory)',
-    ));
+    Clipboard.setData(
+      ClipboardData(
+        text:
+            '${widget.priceData['item']} - J\$${widget.priceData['price']} at ${widget.priceData['store']} (Jamaica Price Directory)',
+      ),
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Price information copied to clipboard!')),
     );
   }
-  
+
   // Report incorrect price
   void _reportPrice() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Report Price'),
-        content: Text('Thank you for helping keep our prices accurate. Your report has been submitted for review.'),
+        content: Text(
+          'Thank you for helping keep our prices accurate. Your report has been submitted for review.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -125,19 +132,19 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       ),
     );
   }
-  
+
   // Get directions to store
   void _getDirections() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Opening directions in Maps app...')),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      
+
       appBar: AppBar(
         title: Text('Price Details'),
         actions: [
@@ -150,13 +157,10 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
             ),
           ),
           // Share button
-          IconButton(
-            onPressed: _sharePrice,
-            icon: Icon(Icons.share),
-          ),
+          IconButton(onPressed: _sharePrice, icon: Icon(Icons.share)),
         ],
       ),
-      
+
       body: isLoading
           ? _buildLoadingState()
           : SingleChildScrollView(
@@ -164,39 +168,39 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
                 children: [
                   // Main price info
                   _buildMainPriceInfo(),
-                  
+
                   SizedBox(height: 16),
-                  
+
                   // Action buttons
                   _buildActionButtons(),
-                  
+
                   SizedBox(height: 16),
-                  
+
                   // Store information
                   _buildStoreInfo(),
-                  
+
                   SizedBox(height: 16),
-                  
+
                   // Price history
                   _buildPriceHistory(),
-                  
+
                   SizedBox(height: 16),
-                  
+
                   // Nearby prices
                   _buildNearbyPrices(),
-                  
+
                   SizedBox(height: 16),
-                  
+
                   // Additional info
                   _buildAdditionalInfo(),
-                  
+
                   SizedBox(height: 32),
                 ],
               ),
             ),
     );
   }
-  
+
   // Loading state
   Widget _buildLoadingState() {
     return Center(
@@ -210,7 +214,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       ),
     );
   }
-  
+
   // Main price information card
   Widget _buildMainPriceInfo() {
     return Container(
@@ -240,9 +244,9 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
               color: Colors.grey[800],
             ),
           ),
-          
+
           SizedBox(height: 8),
-          
+
           // Price
           Text(
             'J\$${widget.priceData['price'].toStringAsFixed(2)}',
@@ -252,9 +256,9 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
               color: Color(0xFF1E3A8A),
             ),
           ),
-          
+
           SizedBox(height: 12),
-          
+
           // Store and location
           Row(
             children: [
@@ -263,17 +267,14 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
               Expanded(
                 child: Text(
                   '${widget.priceData['store']} • ${widget.priceData['location']}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 ),
               ),
             ],
           ),
-          
+
           SizedBox(height: 8),
-          
+
           // Distance and verification
           Row(
             children: [
@@ -313,7 +314,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       ),
     );
   }
-  
+
   // Action buttons
   Widget _buildActionButtons() {
     return Container(
@@ -339,13 +340,13 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       ),
     );
   }
-  
+
   // Store information section
   Widget _buildStoreInfo() {
     if (!additionalData.containsKey('storeInfo')) return Container();
-    
+
     Map<String, dynamic> storeInfo = additionalData['storeInfo'];
-    
+
     return _buildSection(
       title: 'Store Information',
       icon: Icons.store,
@@ -368,13 +369,13 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       ),
     );
   }
-  
+
   // Price history section
   Widget _buildPriceHistory() {
     if (!additionalData.containsKey('priceHistory')) return Container();
-    
+
     List<Map<String, dynamic>> history = additionalData['priceHistory'];
-    
+
     return _buildSection(
       title: 'Price History',
       icon: Icons.trending_up,
@@ -382,7 +383,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
         children: history.map((entry) {
           double price = entry['price'];
           bool isCurrentPrice = entry['date'] == 'Today';
-          
+
           return Padding(
             padding: EdgeInsets.symmetric(vertical: 4),
             child: Row(
@@ -392,15 +393,21 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
                   entry['date'],
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: isCurrentPrice ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isCurrentPrice
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
                 Text(
                   'J\$${price.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: isCurrentPrice ? FontWeight.bold : FontWeight.normal,
-                    color: isCurrentPrice ? Color(0xFF1E3A8A) : Colors.grey[700],
+                    fontWeight: isCurrentPrice
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isCurrentPrice
+                        ? Color(0xFF1E3A8A)
+                        : Colors.grey[700],
                   ),
                 ),
               ],
@@ -410,13 +417,13 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       ),
     );
   }
-  
+
   // Nearby prices section
   Widget _buildNearbyPrices() {
     if (!additionalData.containsKey('nearbyPrices')) return Container();
-    
+
     List<Map<String, dynamic>> nearbyPrices = additionalData['nearbyPrices'];
-    
+
     return _buildSection(
       title: 'Compare Nearby',
       icon: Icons.compare_arrows,
@@ -426,7 +433,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
           double currentPrice = widget.priceData['price'].toDouble();
           double difference = priceValue - currentPrice;
           bool isHigher = difference > 0;
-          
+
           return Container(
             margin: EdgeInsets.symmetric(vertical: 4),
             padding: EdgeInsets.all(12),
@@ -446,10 +453,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
                       ),
                       Text(
                         '${price['location']} • ${price['distance']} km',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -480,27 +484,47 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       ),
     );
   }
-  
+
   // Additional information section
   Widget _buildAdditionalInfo() {
     if (additionalData.isEmpty) return Container();
-    
+
     return _buildSection(
       title: 'Additional Information',
       icon: Icons.info,
       child: Column(
         children: [
-          _buildInfoRow(Icons.update, 'Last Updated', additionalData['lastUpdated']),
-          _buildInfoRow(Icons.person, 'Submitted By', additionalData['submittedBy']),
-          _buildInfoRow(Icons.visibility, 'Views', '${additionalData['viewCount']}'),
-          _buildInfoRow(Icons.thumb_up, 'Helpful Votes', '${additionalData['helpfulVotes']}'),
+          _buildInfoRow(
+            Icons.update,
+            'Last Updated',
+            additionalData['lastUpdated'],
+          ),
+          _buildInfoRow(
+            Icons.person,
+            'Submitted By',
+            additionalData['submittedBy'],
+          ),
+          _buildInfoRow(
+            Icons.visibility,
+            'Views',
+            '${additionalData['viewCount']}',
+          ),
+          _buildInfoRow(
+            Icons.thumb_up,
+            'Helpful Votes',
+            '${additionalData['helpfulVotes']}',
+          ),
         ],
       ),
     );
   }
-  
+
   // Helper method to build sections
-  Widget _buildSection({required String title, required IconData icon, required Widget child}) {
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16),
       padding: EdgeInsets.all(16),
@@ -539,7 +563,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
       ),
     );
   }
-  
+
   // Helper method to build info rows
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
@@ -556,10 +580,7 @@ class _PriceDetailScreenState extends State<PriceDetailScreen> {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: Colors.grey[700]),
-            ),
+            child: Text(value, style: TextStyle(color: Colors.grey[700])),
           ),
         ],
       ),

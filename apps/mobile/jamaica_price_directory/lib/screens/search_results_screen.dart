@@ -5,10 +5,10 @@ import 'price_detail_screen.dart'; // Import enhanced price detail screen
 // Search Results Screen - Shows prices based on user's search
 class SearchResultsScreen extends StatefulWidget {
   final String searchQuery; // What the user searched for
-  
+
   // Constructor - receives search query from previous screen
   const SearchResultsScreen({super.key, required this.searchQuery});
-  
+
   @override
   State<SearchResultsScreen> createState() => _SearchResultsScreenState();
 }
@@ -18,47 +18,51 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   List<Map<String, dynamic>> searchResults = [];
   List<Map<String, dynamic>> filteredResults = [];
   bool isLoading = true;
-  
+
   // Filter settings
   SearchFilters filters = SearchFilters.defaultFilters();
-  
+
   @override
   void initState() {
     super.initState();
     // Load search results when screen opens
     _performSearch();
   }
-  
+
   // Mock search function - simulates API call
   Future<void> _performSearch() async {
     // Simulate network delay
     await Future.delayed(Duration(seconds: 1));
-    
+
     // Mock data based on search query
-    List<Map<String, dynamic>> mockResults = _generateMockResults(widget.searchQuery);
-    
+    List<Map<String, dynamic>> mockResults = _generateMockResults(
+      widget.searchQuery,
+    );
+
     setState(() {
       searchResults = mockResults;
       _applyFilters(); // Apply current filters
       isLoading = false;
     });
   }
-  
+
   // Apply filters and sorting to search results
   void _applyFilters() {
     List<Map<String, dynamic>> filtered = List.from(searchResults);
-    
+
     // Apply parish filter
     if (filters.parish != 'All Parishes') {
-      filtered = filtered.where((item) => item['parish'] == filters.parish).toList();
+      filtered = filtered
+          .where((item) => item['parish'] == filters.parish)
+          .toList();
     }
-    
+
     // Apply price range filter
     filtered = filtered.where((item) {
       double price = item['price'].toDouble();
       return price >= filters.minPrice && price <= filters.maxPrice;
     }).toList();
-    
+
     // Apply store type filter
     if (filters.storeType != 'All Stores') {
       filtered = filtered.where((item) {
@@ -66,23 +70,25 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         return storeType == filters.storeType;
       }).toList();
     }
-    
+
     // Apply verification filter
     if (filters.verifiedOnly) {
       filtered = filtered.where((item) => item['verified'] == true).toList();
     }
-    
+
     // Apply distance filter
-    filtered = filtered.where((item) => item['distance'] <= filters.maxDistance).toList();
-    
+    filtered = filtered
+        .where((item) => item['distance'] <= filters.maxDistance)
+        .toList();
+
     // Apply sorting
     _sortResults(filtered);
-    
+
     setState(() {
       filteredResults = filtered;
     });
   }
-  
+
   // Sort results based on selected option
   void _sortResults(List<Map<String, dynamic>> results) {
     switch (filters.sortBy) {
@@ -105,18 +111,23 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         break;
     }
   }
-  
+
   // Get store type for filtering
   String _getStoreType(String storeName) {
-    if (storeName.contains('Hi-Lo') || storeName.contains('MegaMart') || storeName.contains('SuperPlus') || storeName.contains('PriceSmart')) {
+    if (storeName.contains('Hi-Lo') ||
+        storeName.contains('MegaMart') ||
+        storeName.contains('SuperPlus') ||
+        storeName.contains('PriceSmart')) {
       return 'Supermarket';
-    } else if (storeName.contains('Petcom') || storeName.contains('Shell') || storeName.contains('Texaco')) {
+    } else if (storeName.contains('Petcom') ||
+        storeName.contains('Shell') ||
+        storeName.contains('Texaco')) {
       return 'Gas Station';
     } else {
       return 'Market Vendor';
     }
   }
-  
+
   // Open filters screen
   Future<void> _openFilters() async {
     SearchFilters? newFilters = await Navigator.push(
@@ -125,7 +136,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         builder: (context) => SearchFiltersScreen(currentFilters: filters),
       ),
     );
-    
+
     if (newFilters != null) {
       setState(() {
         filters = newFilters;
@@ -133,47 +144,173 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       });
     }
   }
-  
+
   // Generate mock search results based on query
   List<Map<String, dynamic>> _generateMockResults(String query) {
     // Convert query to lowercase for comparison
     String lowerQuery = query.toLowerCase();
-    
+
     // All our mock price data
     List<Map<String, dynamic>> allPrices = [
       // Rice prices
-      {'item': 'Rice (1 lb)', 'price': 120.00, 'store': 'Hi-Lo', 'location': 'Kingston', 'parish': 'Kingston', 'distance': 2.1, 'verified': true, 'category': 'rice'},
-      {'item': 'Rice (2 lb)', 'price': 230.00, 'store': 'MegaMart', 'location': 'Spanish Town', 'parish': 'St. Catherine', 'distance': 12.5, 'verified': true, 'category': 'rice'},
-      {'item': 'Rice (5 lb)', 'price': 580.00, 'store': 'PriceSmart', 'location': 'Portmore', 'parish': 'St. Catherine', 'distance': 15.2, 'verified': false, 'category': 'rice'},
-      {'item': 'Basmati Rice (1 lb)', 'price': 180.00, 'store': 'SuperPlus', 'location': 'Half Way Tree', 'parish': 'St. Andrew', 'distance': 5.8, 'verified': true, 'category': 'rice'},
-      
+      {
+        'item': 'Rice (1 lb)',
+        'price': 120.00,
+        'store': 'Hi-Lo',
+        'location': 'Kingston',
+        'parish': 'Kingston',
+        'distance': 2.1,
+        'verified': true,
+        'category': 'rice',
+      },
+      {
+        'item': 'Rice (2 lb)',
+        'price': 230.00,
+        'store': 'MegaMart',
+        'location': 'Spanish Town',
+        'parish': 'St. Catherine',
+        'distance': 12.5,
+        'verified': true,
+        'category': 'rice',
+      },
+      {
+        'item': 'Rice (5 lb)',
+        'price': 580.00,
+        'store': 'PriceSmart',
+        'location': 'Portmore',
+        'parish': 'St. Catherine',
+        'distance': 15.2,
+        'verified': false,
+        'category': 'rice',
+      },
+      {
+        'item': 'Basmati Rice (1 lb)',
+        'price': 180.00,
+        'store': 'SuperPlus',
+        'location': 'Half Way Tree',
+        'parish': 'St. Andrew',
+        'distance': 5.8,
+        'verified': true,
+        'category': 'rice',
+      },
+
       // Chicken prices
-      {'item': 'Chicken Breast (1 lb)', 'price': 320.00, 'store': 'Hi-Lo', 'location': 'Kingston', 'parish': 'Kingston', 'distance': 2.1, 'verified': true, 'category': 'chicken'},
-      {'item': 'Whole Chicken (3 lb)', 'price': 850.00, 'store': 'MegaMart', 'location': 'Montego Bay', 'parish': 'St. James', 'distance': 180.5, 'verified': true, 'category': 'chicken'},
-      {'item': 'Chicken Wings (1 lb)', 'price': 280.00, 'store': 'SuperPlus', 'location': 'Mandeville', 'parish': 'Manchester', 'distance': 65.3, 'verified': false, 'category': 'chicken'},
-      
+      {
+        'item': 'Chicken Breast (1 lb)',
+        'price': 320.00,
+        'store': 'Hi-Lo',
+        'location': 'Kingston',
+        'parish': 'Kingston',
+        'distance': 2.1,
+        'verified': true,
+        'category': 'chicken',
+      },
+      {
+        'item': 'Whole Chicken (3 lb)',
+        'price': 850.00,
+        'store': 'MegaMart',
+        'location': 'Montego Bay',
+        'parish': 'St. James',
+        'distance': 180.5,
+        'verified': true,
+        'category': 'chicken',
+      },
+      {
+        'item': 'Chicken Wings (1 lb)',
+        'price': 280.00,
+        'store': 'SuperPlus',
+        'location': 'Mandeville',
+        'parish': 'Manchester',
+        'distance': 65.3,
+        'verified': false,
+        'category': 'chicken',
+      },
+
       // Gas prices
-      {'item': 'Regular Gas (1 gallon)', 'price': 195.50, 'store': 'Petcom', 'location': 'Spanish Town', 'parish': 'St. Catherine', 'distance': 12.5, 'verified': true, 'category': 'gas'},
-      {'item': 'Premium Gas (1 gallon)', 'price': 210.00, 'store': 'Shell', 'location': 'Kingston', 'parish': 'Kingston', 'distance': 3.2, 'verified': true, 'category': 'gas'},
-      {'item': 'Diesel (1 gallon)', 'price': 185.00, 'store': 'Texaco', 'location': 'Ocho Rios', 'parish': 'St. Ann', 'distance': 95.1, 'verified': true, 'category': 'gas'},
-      
+      {
+        'item': 'Regular Gas (1 gallon)',
+        'price': 195.50,
+        'store': 'Petcom',
+        'location': 'Spanish Town',
+        'parish': 'St. Catherine',
+        'distance': 12.5,
+        'verified': true,
+        'category': 'gas',
+      },
+      {
+        'item': 'Premium Gas (1 gallon)',
+        'price': 210.00,
+        'store': 'Shell',
+        'location': 'Kingston',
+        'parish': 'Kingston',
+        'distance': 3.2,
+        'verified': true,
+        'category': 'gas',
+      },
+      {
+        'item': 'Diesel (1 gallon)',
+        'price': 185.00,
+        'store': 'Texaco',
+        'location': 'Ocho Rios',
+        'parish': 'St. Ann',
+        'distance': 95.1,
+        'verified': true,
+        'category': 'gas',
+      },
+
       // Bread prices
-      {'item': 'Whole Wheat Bread', 'price': 180.00, 'store': 'Purity', 'location': 'Kingston', 'parish': 'Kingston', 'distance': 1.8, 'verified': true, 'category': 'bread'},
-      {'item': 'White Bread', 'price': 160.00, 'store': 'National', 'location': 'Spanish Town', 'parish': 'St. Catherine', 'distance': 12.5, 'verified': true, 'category': 'bread'},
-      
+      {
+        'item': 'Whole Wheat Bread',
+        'price': 180.00,
+        'store': 'Purity',
+        'location': 'Kingston',
+        'parish': 'Kingston',
+        'distance': 1.8,
+        'verified': true,
+        'category': 'bread',
+      },
+      {
+        'item': 'White Bread',
+        'price': 160.00,
+        'store': 'National',
+        'location': 'Spanish Town',
+        'parish': 'St. Catherine',
+        'distance': 12.5,
+        'verified': true,
+        'category': 'bread',
+      },
+
       // Milk prices
-      {'item': 'Fresh Milk (1 liter)', 'price': 220.00, 'store': 'Dairy Industries', 'location': 'Kingston', 'parish': 'Kingston', 'distance': 4.5, 'verified': true, 'category': 'milk'},
-      {'item': 'Powdered Milk (400g)', 'price': 850.00, 'store': 'Hi-Lo', 'location': 'Half Way Tree', 'parish': 'St. Andrew', 'distance': 5.8, 'verified': false, 'category': 'milk'},
+      {
+        'item': 'Fresh Milk (1 liter)',
+        'price': 220.00,
+        'store': 'Dairy Industries',
+        'location': 'Kingston',
+        'parish': 'Kingston',
+        'distance': 4.5,
+        'verified': true,
+        'category': 'milk',
+      },
+      {
+        'item': 'Powdered Milk (400g)',
+        'price': 850.00,
+        'store': 'Hi-Lo',
+        'location': 'Half Way Tree',
+        'parish': 'St. Andrew',
+        'distance': 5.8,
+        'verified': false,
+        'category': 'milk',
+      },
     ];
-    
+
     // Filter results based on search query
     return allPrices.where((price) {
       return price['item'].toLowerCase().contains(lowerQuery) ||
-             price['category'].toLowerCase().contains(lowerQuery) ||
-             price['store'].toLowerCase().contains(lowerQuery);
+          price['category'].toLowerCase().contains(lowerQuery) ||
+          price['store'].toLowerCase().contains(lowerQuery);
     }).toList();
   }
-  
+
   // Handle tapping on a price result
   void _onPriceTap(Map<String, dynamic> priceData) {
     // Navigate to enhanced price detail screen
@@ -184,18 +321,21 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      
+
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Search Results', style: TextStyle(fontSize: 16)),
-            Text('"${widget.searchQuery}"', style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal)),
+            Text(
+              '"${widget.searchQuery}"',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+            ),
           ],
         ),
         actions: [
@@ -223,15 +363,15 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           ),
         ],
       ),
-      
+
       body: isLoading
           ? _buildLoadingState()
           : filteredResults.isEmpty
-              ? _buildEmptyState()
-              : _buildResultsList(),
+          ? _buildEmptyState()
+          : _buildResultsList(),
     );
   }
-  
+
   // Loading state while searching
   Widget _buildLoadingState() {
     return Center(
@@ -248,7 +388,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ),
     );
   }
-  
+
   // Empty state when no results found
   Widget _buildEmptyState() {
     return Center(
@@ -257,11 +397,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.search_off,
-              size: 80,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
             SizedBox(height: 16),
             Text(
               'No Results Found',
@@ -275,10 +411,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             Text(
               'We couldn\'t find any prices for "${widget.searchQuery}". Try searching for something else.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             SizedBox(height: 24),
             ElevatedButton(
@@ -290,7 +423,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ),
     );
   }
-  
+
   // List of search results
   Widget _buildResultsList() {
     return Column(
@@ -348,7 +481,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             ],
           ),
         ),
-        
+
         // Results list
         Expanded(
           child: ListView.builder(
@@ -362,7 +495,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ],
     );
   }
-  
+
   // Individual price card
   Widget _buildPriceCard(Map<String, dynamic> price) {
     return Container(
@@ -391,9 +524,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                     size: 30,
                   ),
                 ),
-                
+
                 SizedBox(width: 16),
-                
+
                 // Item details
                 Expanded(
                   child: Column(
@@ -407,9 +540,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                           fontSize: 16,
                         ),
                       ),
-                      
+
                       SizedBox(height: 4),
-                      
+
                       // Store and location
                       Row(
                         children: [
@@ -424,13 +557,17 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                           ),
                         ],
                       ),
-                      
+
                       SizedBox(height: 4),
-                      
+
                       // Distance and verification
                       Row(
                         children: [
-                          Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                          Icon(
+                            Icons.location_on,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
                           SizedBox(width: 4),
                           Text(
                             '${price['distance']} km away',
@@ -442,9 +579,14 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                           SizedBox(width: 8),
                           if (price['verified'])
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: Colors.green.withAlpha((0.1 * 255).round()),
+                                color: Colors.green.withAlpha(
+                                  (0.1 * 255).round(),
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -461,7 +603,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                     ],
                   ),
                 ),
-                
+
                 // Price
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -488,7 +630,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ),
     );
   }
-  
+
   // Get icon based on category
   IconData _getIconForCategory(String category) {
     switch (category.toLowerCase()) {

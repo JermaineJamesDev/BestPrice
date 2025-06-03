@@ -29,6 +29,7 @@ class _EnhancedPhotoPreviewScreenState
   int _retryAttempt = 0;
   static const int maxRetryAttempts = 3;
   Timer? _processingDebouncer;
+  bool _hasNavigated = false; // Track navigation state
 
   @override
   void initState() {
@@ -39,6 +40,8 @@ class _EnhancedPhotoPreviewScreenState
   @override
   void dispose() {
     _processingDebouncer?.cancel();
+    // Cancel any ongoing OCR operations
+    widget.cancellationToken?.cancel();
     super.dispose();
   }
 
@@ -76,10 +79,13 @@ class _EnhancedPhotoPreviewScreenState
   }
 
   Future<void> _processWithOptimization() async {
+    // Prevent multiple processing attempts
+    if (_isProcessing || _hasNavigated) return;
+
     _processingDebouncer?.cancel();
 
     _processingDebouncer = Timer(Duration(milliseconds: 300), () async {
-      if (_isProcessing) return;
+      if (_isProcessing || _hasNavigated) return;
 
       setState(() {
         _isProcessing = true;
@@ -94,6 +100,11 @@ class _EnhancedPhotoPreviewScreenState
             'Image file not found',
             type: OCRErrorType.imageNotFound,
           );
+        }
+
+        // Check if we should cancel before starting heavy processing
+        if (widget.cancellationToken?.isCancelled == true || _hasNavigated) {
+          return;
         }
 
         // Determine processing priority based on performance metrics
@@ -129,7 +140,7 @@ class _EnhancedPhotoPreviewScreenState
           context: errorContext,
           onError: (error, attempt) {
             debugPrint('OCR attempt $attempt failed: $error');
-            if (mounted) {
+            if (mounted && !_hasNavigated) {
               setState(() {
                 _retryAttempt = attempt;
               });
@@ -137,7 +148,7 @@ class _EnhancedPhotoPreviewScreenState
           },
           onRetry: (attempt) {
             debugPrint('Retrying OCR processing (attempt $attempt)');
-            if (mounted) {
+            if (mounted && !_hasNavigated) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
@@ -155,7 +166,12 @@ class _EnhancedPhotoPreviewScreenState
           },
         );
 
-        if (mounted && result != null) {
+        // Check if navigation already happened or component disposed
+        if (!mounted || _hasNavigated) return;
+
+        if (result != null) {
+          _hasNavigated = true; // Mark that we're navigating
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -171,11 +187,11 @@ class _EnhancedPhotoPreviewScreenState
           );
         }
       } catch (e) {
-        if (mounted) {
+        if (mounted && !_hasNavigated) {
           _handleProcessingError(e);
         }
       } finally {
-        if (mounted) {
+        if (mounted && !_hasNavigated) {
           setState(() {
             _isProcessing = false;
           });
@@ -247,7 +263,7 @@ class _EnhancedPhotoPreviewScreenState
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              Navigator.pop(context);
+              _retakePhoto();
             },
             child: Text('Go Back'),
           ),
@@ -289,7 +305,7 @@ class _EnhancedPhotoPreviewScreenState
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              Navigator.pop(context);
+              _retakePhoto();
             },
             child: Text('Retake Photo'),
           ),
@@ -338,7 +354,7 @@ class _EnhancedPhotoPreviewScreenState
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              Navigator.pop(context);
+              _retakePhoto();
             },
             child: Text('Retake Photo'),
           ),
@@ -348,63 +364,87 @@ class _EnhancedPhotoPreviewScreenState
   }
 
   void _retakePhoto() {
+    if (_hasNavigated) return; // Prevent double navigation
+
+    _hasNavigated = true;
+
+    // Cancel any ongoing processing
+    widget.cancellationToken?.cancel();
+
+    // Pop back to camera screen
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      onPopInvoked: (bool didPop) {
+        // Handle back button properly
+        if (!_hasNavigated && didPop) {
+          _hasNavigated = true;
+          widget.cancellationToken?.cancel();
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Enhanced Preview'),
-        actions: [
-          if (_retryAttempt > 0)
-            Container(
-              margin: EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text(
-                  'Attempt ${_retryAttempt + 1}',
-                  style: TextStyle(
-                    color: Colors.orange,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          title: const Text('Enhanced Preview'),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () {
+              _retakePhoto();
+            },
+          ),
+          actions: [
+            if (_retryAttempt > 0)
+              Container(
+                margin: EdgeInsets.only(right: 16),
+                child: Center(
+                  child: Text(
+                    'Attempt ${_retryAttempt + 1}',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
-                borderRadius: BorderRadius.circular(8),
+          ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white, width: 2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: _errorMessage != null
+                      ? _buildErrorState()
+                      : Image.file(
+                          File(widget.imagePath),
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildImageErrorState();
+                          },
+                        ),
+                ),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: _errorMessage != null
-                    ? _buildErrorState()
-                    : Image.file(
-                        File(widget.imagePath),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildImageErrorState();
-                        },
-                      ),
-              ),
             ),
-          ),
-          if (widget.performanceMetrics != null) _buildPerformanceInfo(),
-          if (_errorMessage != null) _buildErrorInfo(),
-        ],
+            if (widget.performanceMetrics != null) _buildPerformanceInfo(),
+            if (_errorMessage != null) _buildErrorInfo(),
+          ],
+        ),
+        bottomNavigationBar: _buildBottomControls(),
       ),
-      bottomNavigationBar: _buildBottomControls(),
     );
   }
 
@@ -468,7 +508,7 @@ class _EnhancedPhotoPreviewScreenState
       margin: EdgeInsets.all(16),
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha((0.1 * 255).round()),
+        color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -524,9 +564,9 @@ class _EnhancedPhotoPreviewScreenState
       margin: EdgeInsets.all(16),
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.withAlpha((0.1 * 255).round()),
+        color: Colors.red.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.withAlpha((0.3 * 255).round())),
+        border: Border.all(color: Colors.red.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -552,7 +592,9 @@ class _EnhancedPhotoPreviewScreenState
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _isProcessing ? null : _retakePhoto,
+                onPressed: (_isProcessing || _hasNavigated)
+                    ? null
+                    : _retakePhoto,
                 icon: const Icon(Icons.camera_alt, color: Colors.white),
                 label: const Text(
                   'Retake',
@@ -568,7 +610,8 @@ class _EnhancedPhotoPreviewScreenState
             Expanded(
               flex: 2,
               child: ElevatedButton.icon(
-                onPressed: (_isProcessing || _errorMessage != null)
+                onPressed:
+                    (_isProcessing || _errorMessage != null || _hasNavigated)
                     ? null
                     : _processWithOptimization,
                 icon: _isProcessing
@@ -588,7 +631,7 @@ class _EnhancedPhotoPreviewScreenState
                   style: const TextStyle(fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _errorMessage != null
+                  backgroundColor: (_errorMessage != null || _hasNavigated)
                       ? Colors.grey
                       : const Color(0xFF1E3A8A),
                   padding: const EdgeInsets.symmetric(vertical: 16),
