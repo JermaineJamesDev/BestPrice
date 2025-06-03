@@ -132,6 +132,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       ),
       
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_budget',
         onPressed: () {
           _showAddExpenseDialog();
         },

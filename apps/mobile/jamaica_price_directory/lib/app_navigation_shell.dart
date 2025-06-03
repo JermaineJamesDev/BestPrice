@@ -131,6 +131,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       // Floating Action Button for quick price submission
       floatingActionButton: _selectedIndex == 0 || _selectedIndex == 1 // Show on Home and Search tabs
           ? FloatingActionButton(
+              heroTag: 'fab_camera',
               onPressed: () {
                 Navigator.pushNamed(context, '/camera');
               },
