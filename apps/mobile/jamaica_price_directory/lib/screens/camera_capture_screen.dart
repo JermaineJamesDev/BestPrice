@@ -54,15 +54,23 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   @override
   void dispose() {
-    _isDisposed = true;
+    _isDisposed = true; // Set disposal flag immediately
     WidgetsBinding.instance.removeObserver(this);
+
+    // Cancel any ongoing operations
     _currentCancellationToken?.cancel();
 
     // Ensure proper cleanup order
     _stopImageStreamAndDispose();
 
-    _errorAnimationController.dispose();
-    _performanceIndicatorController.dispose();
+    // Safely dispose animation controllers
+    try {
+      _errorAnimationController.dispose();
+      _performanceIndicatorController.dispose();
+    } catch (e) {
+      debugPrint('Error disposing animation controllers: $e');
+    }
+
     super.dispose();
   }
 
@@ -232,6 +240,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         });
       }
     }
+    _isImageStreamActive = false;
   }
 
   /// Safely starts the image stream with proper state tracking
@@ -324,13 +333,16 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         _isCapturing ||
         _cameraController == null ||
         _isDisposed ||
+        !mounted ||
         !_cameraController!.value.isInitialized) {
       return;
     }
 
-    setState(() {
-      _isCapturing = true;
-    });
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _isCapturing = true;
+      });
+    }
     _currentCancellationToken = CancellationToken();
 
     try {
@@ -358,14 +370,16 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         ),
         onError: (error, attempt) {
           debugPrint('Photo capture error (attempt $attempt): $error');
-          OCRErrorSnackBar.show(
-            context,
-            error,
-            errorContext: OCRErrorContext(
-              operation: 'photo_capture',
-              metadata: {'attempt': attempt},
-            ),
-          );
+          if (mounted && !_isDisposed) {
+            OCRErrorSnackBar.show(
+              context,
+              error,
+              errorContext: OCRErrorContext(
+                operation: 'photo_capture',
+                metadata: {'attempt': attempt},
+              ),
+            );
+          }
         },
         onRetry: (attempt) {
           debugPrint('Retrying photo capture (attempt $attempt)');
@@ -400,10 +414,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       }
     } catch (e) {
       debugPrint('Capture error: $e');
-      _handleCameraError(e);
+      if (mounted && !_isDisposed) {
+        _handleCameraError(e);
+      }
 
       // Try to restart image stream on error
-      if (!_isDisposed && _isCameraInitialized) {
+      if (!_isDisposed && _isCameraInitialized && mounted) {
         await Future.delayed(const Duration(milliseconds: 500));
         _startImageStreamSafely();
       }
@@ -417,6 +433,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   void _handleCameraError(dynamic error) {
+    if (_isDisposed || !mounted) return;
+
     // Check for ImageReader specific errors first
     if (CameraErrorHandler.isImageReaderError(error)) {
       debugPrint('🔍 ImageReader error detected, attempting recovery...');
@@ -444,23 +462,27 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         _errorMessage = errorMessage;
         _currentErrorType = errorType;
       });
+      _errorAnimationController.forward();
     }
-    _errorAnimationController.forward();
 
-    if (OCRErrorHandler.isCritical(error)) {
+    if (OCRErrorHandler.isCritical(error) && mounted && !_isDisposed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showCriticalErrorDialog(error);
+        if (mounted && !_isDisposed) {
+          _showCriticalErrorDialog(error);
+        }
       });
     }
   }
 
   /// Recover from ImageReader buffer errors
   Future<void> _recoverFromImageReaderError() async {
-    if (_isDisposed) return;
+    if (_isDisposed || !mounted) return;
 
-    setState(() {
-      _errorMessage = 'Camera buffer overflow detected. Restarting...';
-    });
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _errorMessage = 'Camera buffer overflow detected. Restarting...';
+      });
+    }
 
     try {
       // Use enhanced recovery method
@@ -470,10 +492,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       await Future.delayed(const Duration(milliseconds: 500));
 
       // Clear error state
-      _clearError();
+      if (mounted && !_isDisposed) {
+        _clearError();
 
-      // Show success message
-      if (mounted) {
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Camera recovered successfully'),
@@ -485,20 +507,24 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     } catch (e) {
       debugPrint('ImageReader recovery failed: $e');
       // Fall back to full reinitialization
-      _initializeWithErrorHandling();
+      if (mounted && !_isDisposed) {
+        _initializeWithErrorHandling();
+      }
     }
   }
 
   void _clearError() {
-    setState(() {
-      _errorMessage = null;
-      _currentErrorType = null;
-    });
-    _errorAnimationController.reverse();
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _errorMessage = null;
+        _currentErrorType = null;
+      });
+      _errorAnimationController.reverse();
+    }
   }
 
   void _showRetryIndicator() {
-    if (mounted) {
+    if (mounted && !_isDisposed) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -548,15 +574,20 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Future<void> _toggleFlash() async {
-    if (!_isCameraInitialized || _cameraController == null || _isDisposed) {
+    if (!_isCameraInitialized ||
+        _cameraController == null ||
+        _isDisposed ||
+        !mounted) {
       return;
     }
 
     await OCRErrorRecovery.executeWithRecovery(
       () async {
-        setState(() {
-          _isFlashOn = !_isFlashOn;
-        });
+        if (mounted && !_isDisposed) {
+          setState(() {
+            _isFlashOn = !_isFlashOn;
+          });
+        }
         await _cameraController!.setFlashMode(
           _isFlashOn ? FlashMode.torch : FlashMode.off,
         );
@@ -574,12 +605,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Future<void> _switchCamera() async {
-    if (_cameras.length < 2 || _isDisposed) return;
+    if (_cameras.length < 2 || _isDisposed || !mounted) return;
 
-    setState(() {
-      _isLoading = true;
-      _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras.length;
-    });
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _isLoading = true;
+        _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras.length;
+      });
+    }
 
     await OCRErrorRecovery.executeWithRecovery(
       () async {
@@ -595,7 +628,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       'camera_switch',
       onError: (error, attempt) {
         debugPrint('Camera switch error: $error');
-        _handleCameraError(error);
+        if (mounted && !_isDisposed) {
+          _handleCameraError(error);
+        }
       },
       onSuccess: (result) {
         if (mounted && !_isDisposed) {
@@ -728,7 +763,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.red..withAlpha((0.9 * 255).round()),
+              color: Colors.red.withAlpha((0.9 * 255).round()),
               borderRadius: BorderRadius.circular(8),
             ),
             child: SafeArea(
